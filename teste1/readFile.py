@@ -20,7 +20,7 @@ class fileReader:
         data["class"] = data["id"].map(self.target)
         data = data[['id','text','class']]
 
-        data.to_csv("labeled_data.csv")
+        # data.to_csv("labeled_data.csv")
         print(type(data))
         text = data['text'].tolist()
         label = data['class'].tolist()

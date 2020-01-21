@@ -5,7 +5,7 @@ import torch.utils.data as tud
 
 
 class Classifier(nn.Module):
-    def __init__(self,options):
+    def __init__(self,options, pretrained_embeddings=none):
         self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],
                                         embedding_dim = options["emb_dim"],
                                         padding_idx=0)
@@ -25,7 +25,6 @@ class Classifier(nn.Module):
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self,x,length):
-        embeddings = self.embedding(x)
 
         batch_size = x.size()[0]
         embeddings = self.embedding(x)
@@ -53,3 +52,21 @@ class Classifier(nn.Module):
         # scores = self.softmax(linear_out)
 
         return scores
+
+
+class HateSpeechDataset(tud.Dataset):
+        def __init__(self, filename_data, filename_length, filename_labels):
+                self.data_np = numpy.load(filename_data)
+                self.length_np = numpy.load(filename_length)
+                self.labels_np = numpy.load(filename_labels)
+                self.data = torch.tensor(self.data_np).long()
+                self.length = torch.tensor(self.length_np).long()
+                self.labels = torch.tensor(self.labels_np).long()
+
+        def __len__(self):
+                return len(self.data_np)
+
+        def __getitem__(self, idx):
+                return {'x': self.data[idx], 
+                        'length': self.length[idx], 
+                        'y': self.labels[idx]}
