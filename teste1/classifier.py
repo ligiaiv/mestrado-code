@@ -2,10 +2,11 @@ import torch
 from torch import nn, optim
 import numpy
 import torch.utils.data as tud
+from readFile import fileReader
 
 
 class Classifier(nn.Module):
-    def __init__(self,options, pretrained_embeddings=none):
+    def __init__(self,options, pretrained_embeddings=None):
         self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],
                                         embedding_dim = options["emb_dim"],
                                         padding_idx=0)
@@ -54,19 +55,35 @@ class Classifier(nn.Module):
         return scores
 
 
-class HateSpeechDataset(tud.Dataset):
-        def __init__(self, filename_data, filename_length, filename_labels):
-                self.data_np = numpy.load(filename_data)
-                self.length_np = numpy.load(filename_length)
-                self.labels_np = numpy.load(filename_labels)
-                self.data = torch.tensor(self.data_np).long()
-                self.length = torch.tensor(self.length_np).long()
-                self.labels = torch.tensor(self.labels_np).long()
+class thisDataset(tud.Dataset):
+        def __init__(self,path, filename_data, filename_labels):
 
+            self.data = None
+            self.target = None
+            self.path = path
+            self.filename_data = filename_data
+            self.filename_labels = filename_labels
+
+            self.loadFile()
+                # self.data_np = numpy.load(filename_data)
+                # self.length_np = numpy.load(filename_length)
+                # self.labels_np = numpy.load(filename_labels)
+                # self.data = torch.tensor(self.data_np).long()
+                # self.length = torch.tensor(self.length_np).long()
+                # self.labels = torch.tensor(self.labels_np).long()
+        def loadFile(self):
+
+            if self.path == None:
+                self.path = os.getcwd().split('/')
+                self.path.pop()
+                self.path = '/'.join(self.path)+'/Datasets/'
+            reader  =  fileReader(self.path+self.filename_data,self.path+self.filename_labels)
+            self.data,self.target = reader.readData()
+            print(self.path)
         def __len__(self):
-                return len(self.data_np)
+                return len(self.data)
 
         def __getitem__(self, idx):
                 return {'x': self.data[idx], 
-                        'length': self.length[idx], 
+                        'length': len(self.data[idx]), 
                         'y': self.labels[idx]}

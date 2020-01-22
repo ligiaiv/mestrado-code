@@ -1,35 +1,27 @@
-from classifier import Classifier
+from classifier import Classifier, thisDataset
 from readFile import fileReader
 import os, pandas, numpy,torch
 from torch import nn,optim
 import torch.utils.data as tud
-
+import helper
 #
 #Read File
 #
-path = os.getcwd().split('/')
-path.pop()
-path = '/'.join(path)+'/'
-reader  =  fileReader(path+"Datasets/tweets_hate_speech.csv",path+"Datasets/NAACL_SRW_2016.csv")
-data,target = reader.readData()
-print(path)
+# path = os.getcwd().split('/')
+# path.pop()
+# path = '/'.join(path)+'/'
+# reader  =  fileReader(path+"Datasets/tweets_hate_speech.csv",path+"Datasets/NAACL_SRW_2016.csv")
+# data,target = reader.readData()
+# print(path)
 #
 # Baseado no código da aula de pytorch de Heike Adel dada no congresso RANLP2019
 #
 
 
 # loading data
-
-# path = "/content/drive/My Drive/summerschool_data/"
-# train_set = HateSpeechDataset(path + "train.data2.npy", 
-#                               path + "train.length.npy", 
-#                               path + "train.labels.npy")
-# dev_set = HateSpeechDataset(path + "dev.data2.npy", 
-#                             path + "dev.length.npy", 
-#                             path + "dev.labels.npy")
-# test_set = HateSpeechDataset(path + "test.data2.npy", 
-#                              path + "test.length.npy", 
-#                              path + "test.labels.npy")
+path = os.getcwd().split('/')
+path.pop()
+path = '/'.join(path)+'/'
 pretrained_embeddings = torch.tensor(numpy.load(path + "Embeddings/"+"embeddings.npy"))
 
 # setting hyperparameters
@@ -44,6 +36,17 @@ options = {
                 'batch_size': 100
           }
 
+#creating dataset
+dataset = thisDataset(path+'Datasets/',"tweets_hate_speech.csv","NAACL_SRW_2016.csv")
+train_size = round(0.7*len(dataset))
+test_size = round(0.2*len(dataset))
+validation_size = (len(dataset)-train_size)-test_size
+
+train_set,test_set,validation_set = tud.random_split(dataset,[train_size,test_size,validation_size])
+# print(type(tud.random_split(dataset,[train_size,test_size,validation_size])))
+
+print(type(validation_set))
+
 # initializing model and defining loss function and optimizer
 model = Classifier(options, pretrained_embeddings)
 # model.cuda()  # do this before instantiating the optimizer
@@ -56,9 +59,8 @@ optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
 # training loop
 train_loader = tud.DataLoader(train_set, batch_size=options['batch_size'], 
                               shuffle=True)
-dev_loader = tud.DataLoader(dev_set, batch_size=options['batch_size'])
+dev_loader = tud.DataLoader(validation_set, batch_size=options['batch_size'])
 test_loader = tud.DataLoader(test_set, batch_size=options['batch_size'])
-
 for epoch in range(options['num_epochs']):
         print("training epoch", epoch + 1)
         # train model on training data
