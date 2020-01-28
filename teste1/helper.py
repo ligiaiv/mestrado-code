@@ -1,6 +1,9 @@
 import numpy
 def sort_by_length(x, l, y):
+        print(l)
         l_sorted, permutation = l.sort(0, descending=True)
+        print("permutation",permutation)
+        print(x)
         x_sorted = x[permutation]
         y_sorted = y[permutation]
         return x_sorted, l_sorted, y_sorted

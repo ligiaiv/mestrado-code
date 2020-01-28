@@ -4,6 +4,7 @@ import os, pandas, numpy,torch
 from torch import nn,optim
 import torch.utils.data as tud
 import helper
+
 #
 #Read File
 #
@@ -42,7 +43,7 @@ train_size = round(0.7*len(dataset))
 test_size = round(0.2*len(dataset))
 validation_size = (len(dataset)-train_size)-test_size
 
-train_set,test_set,validation_set = tud.random_split(dataset,[train_size,test_size,validation_size])
+train_set,test_set,validation_set = dataset.splitDataset(0.7,0.2)
 # print(type(tud.random_split(dataset,[train_size,test_size,validation_size])))
 
 print(type(validation_set))
@@ -66,15 +67,15 @@ for epoch in range(options['num_epochs']):
         # train model on training data
         for data in train_loader:
                 optimizer.zero_grad()
-                x, l, y = sort_by_length(data['x'], data['length'], data['y'])
+                x, l, y = helper.sort_by_length(data['x'], data['length'], data['y'])
                 scores = model(x, l)
                 labels = y
                 loss = loss_function(scores, labels)
                 loss.backward()
                 optimizer.step()
 
-        evaluate_model(train_loader, model, "train", sort=True)
+        helper.evaluate_model(train_loader, model, "train", sort=True)
         # monitor performance on dev data
-        evaluate_model(dev_loader, model, "dev", sort=True)
+        helper.evaluate_model(dev_loader, model, "dev", sort=True)
 
-evaluate_model(test_loader, model, "test", sort=True)
+helper.evaluate_model(test_loader, model, "test", sort=True)
