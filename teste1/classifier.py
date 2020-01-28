@@ -58,8 +58,8 @@ class Classifier(nn.Module):
         return scores
 
 
-class thisDataset(tud.Dataset):
-        def __init__(self,path, filename_data, filename_labels):
+class datasetBuilder():
+        def __init__(self,path, filename_data, filename_labels = None):
             self.en = spacy.load('en_core_web_sm')
 
 
@@ -68,75 +68,70 @@ class thisDataset(tud.Dataset):
                     init_token = '<sos>',
                     eos_token = '<eos>',
                     lower=True)
-            self.LABEL =Field(sequential=False, use_vocab=False)
+            self.LABEL =Field(sequential=False, use_vocab=True)
             
 
 
 
             self.data = None
-            self.target = None
+            self.train_set = None
+            self.test_set = None
+            self.validation_set = None
             self.path = path
             self.filename_data = filename_data
             self.filename_labels = filename_labels
 
             self.loadFile()
-                # self.data_np = numpy.load(filename_data)
-                # self.length_np = numpy.load(filename_length)
-                # self.labels_np = numpy.load(filename_labels)
-                # self.data = torch.tensor(self.data_np).long()
-                # self.length = torch.tensor(self.length_np).long()
-                # self.labels = torch.tensor(self.labels_np).long()
+
         def loadFile(self):
 
             if self.path == None:
                 self.path = os.getcwd().split('/')
                 self.path.pop()
                 self.path = '/'.join(self.path)+'/Datasets/'
-            # reader  =  fileReader(self.path+self.filename_data,self.path+self.filename_labels)
-            # self.data,self.target = reader.readData()
-
-            self.data = TabularDataset.splits(path=self.path, format='csv',fields=[('text', self.TEXT), ('class', self.LABEL)])
-            print(self.data)
-
-            self.data =self.preprocessData()
-            quit()
-            print(self.path)
+            self.data = TabularDataset.splits(path=self.path,skip_header=True,train = self.filename_data, format='csv',fields=[('n', None),('id', None),('text', self.TEXT), ('label', self.LABEL)])[0]
+            
+            self.preprocessData()
         def __len__(self):
                 return len(self.data)
 
-        def __getitem__(self, idx):
-                return {'x': self.data[idx], 
-                        'length': len(self.data[idx]), 
-                        'y': self.target[idx]}
+        # def __getitem__(self, idx):
+        #         return {'x': self.data[idx].text, 
+        #                 'length': len(self.data[idx].text), 
+        #                 'y': self.data[idx].label}
 
         def tokenizer(self,text): # create a tokenizer function
-            print("oi")
             return [tok.text for tok in self.en.tokenizer(text)]  
 
         def preprocessData(self):
-            # self.pt = spacy.load('pt')
 
-
-
-
-            # print(self.data)
+            print("data0",self.data[0].text)
             self.TEXT.build_vocab(self.data, vectors="glove.6B.100d")
-            vocab = self.TEXT.vocab
-            print(len(vocab))
+
         def splitDataset(self,train_split,val_split):
 
             if(train_split+val_split)>=1:
                 print("Cada parte deve ser menor do que 1. As somas das partes devem ser menores que 1")
                 return
-            train_size = round(train_split*len(dataset))
-            test_size = round(val_split*len(dataset))
-            validation_size = (len(dataset)-train_size)-test_size
+            train_size = round(train_split*len(self.data))
+            test_size = round(val_split*len(self.data))
+            validation_size = (len(self.data)-train_size)-test_size
 
-            train_set,test_set,validation_set = tud.random_split(self,[train_size,test_size,validation_size])
+            self.train_set,self.test_set,self.validation_set = tud.random_split(self.data,[train_size,test_size,validation_size])
             
-            return train_set,test_set,validation_set
-            # SRC = Field(tokenize = "spacy",
-            #     tokenizer_language="de",
-            #     init_token = '<sos>',
-            #     eos_token = '<eos>',
-            #     lower = True)      
+            return self.train_set,self.test_set,self.validation_set
+                
+
+
+# def splitDataset(train_split,val_split):
+
+#             if(train_split+val_split)>=1:
+#                 print("Cada parte deve ser menor do que 1. As somas das partes devem ser menores que 1")
+#                 return
+#             train_size = round(train_split*len(self.data))
+#             test_size = round(val_split*len(self.data))
+#             validation_size = (len(self.data)-train_size)-test_size
+
+#             train_set,test_set,validation_set = tud.random_split(self,[train_size,test_size,validation_size])
+            
+#             return train_set,test_set,validation_set

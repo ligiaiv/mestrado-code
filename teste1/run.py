@@ -1,8 +1,10 @@
-from classifier import Classifier, thisDataset
+from classifier import Classifier, datasetBuilder
 from readFile import fileReader
 import os, pandas, numpy,torch
 from torch import nn,optim
 import torch.utils.data as tud
+from torchtext.data import Iterator, BucketIterator
+
 import helper
 
 #
@@ -38,12 +40,16 @@ options = {
           }
 
 #creating dataset
-dataset = thisDataset(path+'Datasets/',"tweets_hate_speech.csv","NAACL_SRW_2016.csv")
-train_size = round(0.7*len(dataset))
-test_size = round(0.2*len(dataset))
-validation_size = (len(dataset)-train_size)-test_size
+dataset = datasetBuilder(path+'Datasets/',"labeled_data.csv")
+# train_size = round(0.7*len(dataset))
+# test_size = round(0.2*len(dataset))
+# validation_size = (len(dataset)-train_size)-test_size
 
 train_set,test_set,validation_set = dataset.splitDataset(0.7,0.2)
+
+print("TRAIN",len(train_set))
+print("TEST",len(test_set))
+print("VALIDATION",len(validation_set))
 # print(type(tud.random_split(dataset,[train_size,test_size,validation_size])))
 
 print(type(validation_set))
@@ -57,15 +63,27 @@ for name, param in model.named_parameters():
         print(name)
 optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
 
+
+
 # training loop
-train_loader = tud.DataLoader(train_set, batch_size=options['batch_size'], 
-                              shuffle=True)
-dev_loader = tud.DataLoader(validation_set, batch_size=options['batch_size'])
-test_loader = tud.DataLoader(test_set, batch_size=options['batch_size'])
+train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(64,64),device = -1, 
+                        sort_key =  lambda x: len(x.text),
+                        sort_within_batch = False,repeat = False)
+test_iter = Iterator(test_set,batch_size=64,device=-1,sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
+
+# train_loader = tud.DataLoader(train_set, batch_size=options['batch_size'], 
+#                               shuffle=True)
+# dev_loader = tud.DataLoader(validation_set, batch_size=options['batch_size'])
+# test_loader = tud.DataLoader(test_set, batch_size=options['batch_size'])
+
+
+
+
+
 for epoch in range(options['num_epochs']):
         print("training epoch", epoch + 1)
         # train model on training data
-        for data in train_loader:
+        for data in train_iter:
                 optimizer.zero_grad()
                 x, l, y = helper.sort_by_length(data['x'], data['length'], data['y'])
                 scores = model(x, l)
@@ -74,8 +92,8 @@ for epoch in range(options['num_epochs']):
                 loss.backward()
                 optimizer.step()
 
-        helper.evaluate_model(train_loader, model, "train", sort=True)
+        helper.evaluate_model(train_iter, model, "train", sort=True)
         # monitor performance on dev data
-        helper.evaluate_model(dev_loader, model, "dev", sort=True)
+        helper.evaluate_model(val_iter, model, "dev", sort=True)
 
-helper.evaluate_model(test_loader, model, "test", sort=True)
+helper.evaluate_model(test_set, model, "test", sort=True)
