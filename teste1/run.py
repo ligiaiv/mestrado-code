@@ -1,6 +1,6 @@
 from classifier import Classifier, datasetBuilder
 from readFile import fileReader
-import os, pandas, numpy,torch
+import os, pandas,torch, numpy
 from torch import nn,optim
 import torch.utils.data as tud
 from torchtext.data import Iterator, BucketIterator
@@ -28,16 +28,7 @@ path = '/'.join(path)+'/'
 pretrained_embeddings = torch.tensor(numpy.load(path + "Embeddings/"+"embeddings.npy"))
 
 # setting hyperparameters
-options = {
-                'vocab_size': 23078,
-                'emb_dim': 300,
-                'num_labels': 3,
-                'hidden_lstm_dim': 200,
-                'bidirectional': True,
-                'num_layers': 2,
-                'num_epochs': 20,
-                'batch_size': 100
-          }
+
 
 #creating dataset
 dataset = datasetBuilder(path+'Datasets/',"labeled_data.csv")
@@ -52,11 +43,36 @@ print("TEST",len(test_set))
 print("VALIDATION",len(validation_set))
 # print(type(tud.random_split(dataset,[train_size,test_size,validation_size])))
 
-print(type(validation_set))
+# print(type(validation_set))
+
+#NN options
+
+options = {
+                'vocab_size': len(dataset.TEXT.vocab),
+                'emb_dim': 100,
+                'num_labels': len(dataset.LABEL.vocab),
+                'hidden_lstm_dim': 200,
+                'bidirectional': True,
+                'num_layers': 2,
+                'num_epochs': 20,
+                'batch_size': 64
+          }
+
+
+#Create Iterators
+
+train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = -1, 
+                        sort_key =  lambda x: len(x.text),
+                        sort_within_batch = False,repeat = False)
+test_iter = Iterator(test_set,batch_size=options["batch_size"],device=-1,sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
+
+
 
 # initializing model and defining loss function and optimizer
 model = Classifier(options, pretrained_embeddings)
 # model.cuda()  # do this before instantiating the optimizer
+
+
 loss_function = nn.NLLLoss()
 for name, param in model.named_parameters():
     if param.requires_grad:
@@ -64,29 +80,26 @@ for name, param in model.named_parameters():
 optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
 
 
-
 # training loop
-train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(64,64),device = -1, 
-                        sort_key =  lambda x: len(x.text),
-                        sort_within_batch = False,repeat = False)
-test_iter = Iterator(test_set,batch_size=64,device=-1,sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
-
-# train_loader = tud.DataLoader(train_set, batch_size=options['batch_size'], 
-#                               shuffle=True)
-# dev_loader = tud.DataLoader(validation_set, batch_size=options['batch_size'])
-# test_loader = tud.DataLoader(test_set, batch_size=options['batch_size'])
-
-
-
 
 
 for epoch in range(options['num_epochs']):
         print("training epoch", epoch + 1)
         # train model on training data
-        for data in train_iter:
+        for batch in train_iter:
+                # print(batch.__dict__.keys())
+                # print(type(batch.text))
+                # print("zero:",dataset.TEXT.vocab.itos[1])
+                # print(len(batch))
+                # print("DIR",numpy.ma.size(batch.text,0))
+                # quit()
+                x,l=batch.text
+
+                # l = numpy.ma.size(batch.text,0)
+                y = batch.label 
                 optimizer.zero_grad()
-                x, l, y = helper.sort_by_length(data['x'], data['length'], data['y'])
-                scores = model(x, l)
+                x, l, y = helper.sort_by_length(x, l, y)
+                scores = model(x,l)
                 labels = y
                 loss = loss_function(scores, labels)
                 loss.backward()

@@ -24,17 +24,21 @@ class Classifier(nn.Module):
         if options['bidirectional']:
             lstm_out_size *= 2
             
-        self.linear = nn.Linear(in_features = options["vocab_size"],
+        self.linear = nn.Linear(in_features = lstm_out_size,
                                 out_features=options["num_labels"])
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self,x,length):
 
-        batch_size = x.size()[0]
+        batch_size = x.size()[1]
         embeddings = self.embedding(x)
-        embeddings = nn.utils.rnn.pack_padded_sequence(embeddings, length, batch_first=True)
+        # print("embeddings",embeddings.shape)
+        embeddings = nn.utils.rnn.pack_padded_sequence(embeddings, length, batch_first=False)
+
         outputs, (ht, ct) = self.lstm(embeddings)
-        outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(outputs, batch_first=True)
+
+        outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(outputs, batch_first=False)
+        # print("outputs",outputs.shape)
 
         if self.options['bidirectional']:
             ht = ht.view(self.options['num_layers'], 2, batch_size, 
@@ -43,6 +47,7 @@ class Classifier(nn.Module):
                         # from last layer
             # concatenate last hidden states from forward and backward passes
             lstm_out = torch.cat([ht[0], ht[1]], dim=1)
+            # print("lstm_out",lstm_out.shape)
         else:
             lstm_out = ht[-1,:,:] # get the last hidden state of the outmost layer
 
@@ -67,7 +72,8 @@ class datasetBuilder():
                     tokenize=self.tokenizer, 
                     init_token = '<sos>',
                     eos_token = '<eos>',
-                    lower=True)
+                    lower=True,
+                    include_lengths = True)
             self.LABEL =Field(sequential=False, use_vocab=True)
             
 
@@ -105,8 +111,11 @@ class datasetBuilder():
 
         def preprocessData(self):
 
-            print("data0",self.data[0].text)
+            # print("data0",self.data[0].text)
             self.TEXT.build_vocab(self.data, vectors="glove.6B.100d")
+            self.LABEL.build_vocab(self.data)
+
+            # print("vocab",self.LABEL.vocab.itos)
 
         def splitDataset(self,train_split,val_split):
 
@@ -117,7 +126,7 @@ class datasetBuilder():
             test_size = round(val_split*len(self.data))
             validation_size = (len(self.data)-train_size)-test_size
 
-            self.train_set,self.test_set,self.validation_set = tud.random_split(self.data,[train_size,test_size,validation_size])
+            self.train_set,self.test_set,self.validation_set = self.data.split([train_size,test_size,validation_size])
             
             return self.train_set,self.test_set,self.validation_set
                 

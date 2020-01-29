@@ -21,7 +21,7 @@ class fileReader:
         data = data[['id','text','class']]
 
         # data.to_csv("labeled_data.csv")
-        print(type(data))
+        # print(type(data))
         text = data['text'].tolist()
         label = data['class'].tolist()
 
