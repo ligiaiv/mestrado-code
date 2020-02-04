@@ -8,7 +8,7 @@ import spacy
 from torchtext.datasets import Multi30k
 from torchtext.data import Field, BucketIterator, TabularDataset
 
-class Classifier(nn.Module):
+class RNNClassifier(nn.Module):
     def __init__(self,options):
         super(Classifier, self).__init__()
         self.options = options
@@ -144,3 +144,44 @@ class datasetBuilder():
 #             train_set,test_set,validation_set = tud.random_split(self,[train_size,test_size,validation_size])
             
 #             return train_set,test_set,validation_set
+
+class LSTMClassifier(nn.Module):
+    def __init__(self,options):
+        super(Classifier, self).__init__()
+        self.options = options
+        self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],embedding_dim = options["emb_dim"],padding_idx=0)
+        self.lstm = nn.LSTM(input_size=options['emb_dim'],
+                        hidden_size=options['hidden_lstm_dim'],
+                        num_layers=options['num_layers'],
+                        batch_first=True,
+                        bidirectional=False)
+
+
+        lstm_out_size = options['hidden_lstm_dim']
+        # if options['bidirectional']:
+        #     lstm_out_size *= 2
+            
+        self.linear = nn.Linear(in_features = lstm_out_size,
+                                out_features=options["num_labels"])
+        self.softmax = nn.LogSoftmax(dim=1)
+
+    def forward(self,x,length):
+
+        batch_size = x.size()[1]
+        embeddings = self.embedding(x)
+        embeddings = nn.utils.rnn.pack_padded_sequence(embeddings, length, batch_first=False)
+
+        outputs, (ht, ct) = self.lstm(embeddings)
+
+        outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(outputs, batch_first=False)
+
+        
+        lstm_out = ht[-1,:,:] # get the last hidden state of the outmost layer
+
+        linear_out = self.linear(lstm_out)
+        scores = self.softmax(linear_out)
+
+
+
+        return scores
+

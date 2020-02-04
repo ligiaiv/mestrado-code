@@ -2,3 +2,4 @@
 *Embedding*
 *embedding*
 *.vector_cache/
+.vscode/
