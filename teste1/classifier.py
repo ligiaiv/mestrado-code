@@ -9,7 +9,7 @@ from torchtext.datasets import Multi30k
 from torchtext.data import Field, BucketIterator, TabularDataset
 
 class Classifier(nn.Module):
-    def __init__(self,options, pretrained_embeddings=None):
+    def __init__(self,options):
         super(Classifier, self).__init__()
         self.options = options
         self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],embedding_dim = options["emb_dim"],padding_idx=0)

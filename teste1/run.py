@@ -25,7 +25,7 @@ import helper
 path = os.getcwd().split('/')
 path.pop()
 path = '/'.join(path)+'/'
-pretrained_embeddings = torch.tensor(numpy.load(path + "Embeddings/"+"embeddings.npy"))
+# pretrained_embeddings = torch.tensor(numpy.load(path + "Embeddings/"+"embeddings.npy"))
 
 # setting hyperparameters
 
@@ -54,22 +54,22 @@ options = {
                 'hidden_lstm_dim': 200,
                 'bidirectional': True,
                 'num_layers': 2,
-                'num_epochs': 20,
+                'num_epochs': 5,
                 'batch_size': 64
           }
 
 
 #Create Iterators
 
-train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = -1, 
+train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = torch.device('cuda'), 
                         sort_key =  lambda x: len(x.text),
                         sort_within_batch = False,repeat = False)
-test_iter = Iterator(test_set,batch_size=options["batch_size"],device=-1,sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
+test_iter = Iterator(test_set,batch_size=options["batch_size"],device = torch.device('cuda'),sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
 
 
 
 # initializing model and defining loss function and optimizer
-model = Classifier(options, pretrained_embeddings)
+model = Classifier(options)
 # model.cuda()  # do this before instantiating the optimizer
 
 
