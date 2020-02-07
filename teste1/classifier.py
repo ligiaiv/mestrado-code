@@ -7,8 +7,8 @@ from readFile import fileReader
 import spacy
 from torchtext.datasets import Multi30k
 from torchtext.data import Field, BucketIterator, TabularDataset
-
-class RNNClassifier(nn.Module):
+import helper
+class Classifier(nn.Module):
     def __init__(self,options):
         super(Classifier, self).__init__()
         self.options = options
@@ -130,6 +130,27 @@ class datasetBuilder():
             
             return self.train_set,self.test_set,self.validation_set
                 
+# training loop
+def train_model(options,train_iter,optimizer,model,loss_function):
+    for epoch in range(options['num_epochs']):
+        print("training epoch", epoch + 1)
+        # train model on training data
+        for batch in train_iter:
+            x,l=batch.text
+
+            # l = numpy.ma.size(batch.text,0)
+            y = batch.label 
+            optimizer.zero_grad()
+            x, l, y = helper.sort_by_length(x, l, y)
+            scores = model(x,l)
+            labels = y
+            loss = loss_function(scores, labels)
+            loss.backward()
+            optimizer.step()
+
+        helper.evaluate_model(train_iter, model, "train", sort=True)
+        # monitor performance on dev data
+        helper.evaluate_model(val_iter, model, "dev", sort=True)
 
 
 # def splitDataset(train_split,val_split):
@@ -144,44 +165,3 @@ class datasetBuilder():
 #             train_set,test_set,validation_set = tud.random_split(self,[train_size,test_size,validation_size])
             
 #             return train_set,test_set,validation_set
-
-class LSTMClassifier(nn.Module):
-    def __init__(self,options):
-        super(Classifier, self).__init__()
-        self.options = options
-        self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],embedding_dim = options["emb_dim"],padding_idx=0)
-        self.lstm = nn.LSTM(input_size=options['emb_dim'],
-                        hidden_size=options['hidden_lstm_dim'],
-                        num_layers=options['num_layers'],
-                        batch_first=True,
-                        bidirectional=False)
-
-
-        lstm_out_size = options['hidden_lstm_dim']
-        # if options['bidirectional']:
-        #     lstm_out_size *= 2
-            
-        self.linear = nn.Linear(in_features = lstm_out_size,
-                                out_features=options["num_labels"])
-        self.softmax = nn.LogSoftmax(dim=1)
-
-    def forward(self,x,length):
-
-        batch_size = x.size()[1]
-        embeddings = self.embedding(x)
-        embeddings = nn.utils.rnn.pack_padded_sequence(embeddings, length, batch_first=False)
-
-        outputs, (ht, ct) = self.lstm(embeddings)
-
-        outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(outputs, batch_first=False)
-
-        
-        lstm_out = ht[-1,:,:] # get the last hidden state of the outmost layer
-
-        linear_out = self.linear(lstm_out)
-        scores = self.softmax(linear_out)
-
-
-
-        return scores
-

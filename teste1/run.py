@@ -1,9 +1,11 @@
-from classifier import Classifier, datasetBuilder
+from classifier import Classifier, datasetBuilder,train_model
 from readFile import fileReader
-import os, pandas,torch, numpy
+import os, pandas,torch
+import numpy as np
 from torch import nn,optim
 import torch.utils.data as tud
 from torchtext.data import Iterator, BucketIterator
+from sklearn.model_selection import KFold
 
 import helper
 
@@ -35,12 +37,34 @@ dataset = datasetBuilder(path+'Datasets/',"labeled_data.csv")
 # train_size = round(0.7*len(dataset))
 # test_size = round(0.2*len(dataset))
 # validation_size = (len(dataset)-train_size)-test_size
+print(dataset.data[0].text)
 
-train_set,test_set,validation_set = dataset.splitDataset(0.7,0.2)
+def mySplitDataset(dataset,ratios):
+		if np.sum(ratios) >1:
+				print("ERROR: ratios must sum 1 or less")
+		elif np.sum(ratios) <1:
+				ratios.append(0.1)
+		total = len(dataset)
+		# train_size,test_size,val_size = sizes
+		sizes = []
+		sizes = np.round(np.array(ratios)*total).astype(np.int)
+		# sizes = [round(x*total) for x in ratios]
+		# for ratio in ratios:
+				
+		#         sizes.append(round(ratio*total))
+				# train_size = round(train_split*len(self.data))
+				# test_size = round(val_split*len(self.data))
+				# validation_size = (len(self.data)-train_size)-test_size
+		sizes[-1] = total - np.sum(sizes[0:-1])
 
-print("TRAIN",len(train_set))
-print("TEST",len(test_set))
-print("VALIDATION",len(validation_set))
+		start_point = 0
+		pieces = []
+		for size in sizes:
+				pieces.append(dataset[start_point:start_point+size])
+				start_point+= size
+		return pieces
+
+
 # print(type(tud.random_split(dataset,[train_size,test_size,validation_size])))
 
 # print(type(validation_set))
@@ -48,23 +72,16 @@ print("VALIDATION",len(validation_set))
 #NN options
 
 options = {
-                'vocab_size': len(dataset.TEXT.vocab),
-                'emb_dim': 100,
-                'num_labels': len(dataset.LABEL.vocab),
-                'hidden_lstm_dim': 200,
-                'bidirectional': True,
-                'num_layers': 2,
-                'num_epochs': 5,
-                'batch_size': 64
-          }
+				'vocab_size': len(dataset.TEXT.vocab),
+				'emb_dim': 100,
+				'num_labels': len(dataset.LABEL.vocab),
+				'hidden_lstm_dim': 200,
+				'bidirectional': True,
+				'num_layers': 2,
+				'num_epochs': 5,
+				'batch_size': 64
+		  }
 
-
-#Create Iterators
-
-train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = torch.device('cuda'), 
-                        sort_key =  lambda x: len(x.text),
-                        sort_within_batch = False,repeat = False)
-test_iter = Iterator(test_set,batch_size=options["batch_size"],device = torch.device('cuda'),sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
 
 
 
@@ -75,38 +92,45 @@ model = Classifier(options)
 
 loss_function = nn.NLLLoss()
 for name, param in model.named_parameters():
-    if param.requires_grad:
-        print(name)
+	if param.requires_grad:
+		print(name)
 optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
 
 
-# training loop
+kf = KFold(n_splits=10)
+
+# train_set,test_set,validation_set = dataset.splitDataset(0.7,0.2)
+train_set,test_set,validation_set = mySplitDataset(dataset.data,[0.7,0.2])
+
+print(train_set[0].text)
+print("TRAIN",len(train_set))
+print("TEST",len(test_set))
+print("VALIDATION",len(validation_set))
 
 
-for epoch in range(options['num_epochs']):
-        print("training epoch", epoch + 1)
-        # train model on training data
-        for batch in train_iter:
-                # print(batch.__dict__.keys())
-                # print(type(batch.text))
-                # print("zero:",dataset.TEXT.vocab.itos[1])
-                # print(len(batch))
-                # print("DIR",numpy.ma.size(batch.text,0))
-                # quit()
-                x,l=batch.text
+for train_index, test_index in kf.split(dataset.data):
+	print("TRAIN:", train_index, "TEST:", test_index)
+	quit()
+	#Create Iterators
+	train_set,test_set = dataset.data[train_index],dataset.data[test_index]
 
-                # l = numpy.ma.size(batch.text,0)
-                y = batch.label 
-                optimizer.zero_grad()
-                x, l, y = helper.sort_by_length(x, l, y)
-                scores = model(x,l)
-                labels = y
-                loss = loss_function(scores, labels)
-                loss.backward()
-                optimizer.step()
+	# train_set,validation_set = train_set
+	train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = torch.device('cuda'), 
+												sort_key =  lambda x: len(x.text),
+												sort_within_batch = False,repeat = False)
+	test_iter = Iterator(test_set,batch_size=options["batch_size"],device = torch.device('cuda'),sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
 
-        helper.evaluate_model(train_iter, model, "train", sort=True)
-        # monitor performance on dev data
-        helper.evaluate_model(val_iter, model, "dev", sort=True)
+
+
+	# X_train, X_test = data[train_index], data[test_index]
+	# y_train, y_test = targets[train_index], targets[test_index]
+
+	# train_model()
+	# confusion_matrix,acc_n,acc_cr = test_model(X_test,y_test)
+	# aucs_n.append(acc_n)
+	# aucs_cruz.append(acc_cr)
+
+	
+
 
 helper.evaluate_model(test_set, model, "test", sort=True)
