@@ -107,8 +107,32 @@ print("TRAIN",len(train_set))
 print("TEST",len(test_set))
 print("VALIDATION",len(validation_set))
 
+# dataset.data.split(np.tile(0.1,10),random_state=0)
+split_lengths = (int(len(dataset.data)/10))
+split_lengths = np.append(np.tile(split_lengths,9),len(dataset.data)-9*split_lengths).tolist()
 
-for train_index, test_index in kf.split(dataset.data):
+subsets = tud.random_split(dataset.data,split_lengths)
+print(subsets)
+# dataset.randomShuffle()
+# steps = np.delete(np.round(np.linspace(0,len(dataset),11)),0).astype(int)
+# last_step = 0
+for index in range(10):
+
+	# test_set = dataset.data[last_step:steps[index]]
+	# train_set = dataset.data[:last_step]+dataset.data[steps[index]:]
+	# last_step = steps[index]
+	
+	test_set = subsets[index]
+	train_set = subsets[:index]+subsets[index+1:]
+	train_set = tud.ConcatDataset(train_set)
+	train_set_size = int(0.9*len(train_set))
+	train_set,validation_set = tud.random_split(train_set,[train_set_size,len(train_set)-train_set_size])
+	print("TRAIN_SET:",len(train_set))
+	print("TEST_SET:",len(test_set))
+	print("VALIDATION_SET:",len(validation_set))
+	quit()
+quit()
+for train_index, test_index in kf.split(dataset):
 	print("TRAIN:", train_index, "TEST:", test_index)
 	quit()
 	#Create Iterators

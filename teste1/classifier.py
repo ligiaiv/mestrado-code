@@ -1,6 +1,6 @@
 import torch, torchtext
 from torch import nn, optim
-import numpy
+import numpy as np
 import os
 import torch.utils.data as tud
 from readFile import fileReader
@@ -130,6 +130,8 @@ class datasetBuilder():
             
             return self.train_set,self.test_set,self.validation_set
                 
+        def randomShuffle(self):
+            self.data = np.random.shuffle(self.data)
 # training loop
 def train_model(options,train_iter,optimizer,model,loss_function):
     for epoch in range(options['num_epochs']):
