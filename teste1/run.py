@@ -1,29 +1,24 @@
-from classifier import Classifier, datasetBuilder,train_model,my_concatDataset
+from classifier import Classifier, datasetBuilder,train_model,myConcatDataset,myDataset
 from readFile import fileReader
 import os, pandas,torch
 import numpy as np
-from torch import nn,optim
+from torch import nn,optim,randperm
 import torch.utils.data as tud
 from torchtext.data import Iterator, BucketIterator
+import torchtext.data as ttd
 from sklearn.model_selection import KFold
+import random
 
 import helper
 
 #
 #Read File
-#
-# path = os.getcwd().split('/')
-# path.pop()
-# path = '/'.join(path)+'/'
-# reader  =  fileReader(path+"Datasets/tweets_hate_speech.csv",path+"Datasets/NAACL_SRW_2016.csv")
-# data,target = reader.readData()
-# print(path)
+
 #
 # Baseado no código da aula de pytorch de Heike Adel dada no congresso RANLP2019
 #
 
 #using cuda or not
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -38,40 +33,33 @@ path = '/'.join(path)+'/'
 
 #creating dataset
 dataset = datasetBuilder(path+'Datasets/',"labeled_data.csv")
-# train_size = round(0.7*len(dataset))
-# test_size = round(0.2*len(dataset))
-# validation_size = (len(dataset)-train_size)-test_size
-print(dataset.data[0].text)
-
-def mySplitDataset(dataset,ratios):
+print("DATASET LEN:",len(dataset))
+def mySplitDataset(dataset,ratios,rand = False, dstype = None):
 		if np.sum(ratios) >1:
 				print("ERROR: ratios must sum 1 or less")
 		elif np.sum(ratios) <1:
 				ratios.append(0.1)
 		total = len(dataset)
-		# train_size,test_size,val_size = sizes
 		sizes = []
 		sizes = np.round(np.array(ratios)*total).astype(np.int)
-		# sizes = [round(x*total) for x in ratios]
-		# for ratio in ratios:
-				
-		#         sizes.append(round(ratio*total))
-				# train_size = round(train_split*len(self.data))
-				# test_size = round(val_split*len(self.data))
-				# validation_size = (len(self.data)-train_size)-test_size
 		sizes[-1] = total - np.sum(sizes[0:-1])
 
 		start_point = 0
 		pieces = []
+		if random:
+			if dstype == "Tabular":
+				data = random.sample(dataset.examples,len(dataset))	
+			else:
+				data = random.sample(dataset.dataset,len(dataset))
+			# dataset = ttd.Dataset(data,dataset.fields)
+			# for size in pieces:
+		
 		for size in sizes:
-				pieces.append(dataset[start_point:start_point+size])
+				pieces.append(myDataset(data[start_point:start_point+size],dataset.fields))
 				start_point+= size
 		return pieces
 
 
-# print(type(tud.random_split(dataset,[train_size,test_size,validation_size])))
-
-# print(type(validation_set))
 
 #NN options
 
@@ -95,54 +83,43 @@ model = Classifier(options)
 
 
 loss_function = nn.NLLLoss()
-for name, param in model.named_parameters():
-	if param.requires_grad:
-		print(name)
+# for name, param in model.named_parameters():
+# 	if param.requires_grad:
+# 		print(name)
 optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
 
 
 kf = KFold(n_splits=10)
 
-# train_set,test_set,validation_set = dataset.splitDataset(0.7,0.2)
-train_set,test_set,validation_set = mySplitDataset(dataset.data,[0.7,0.2])
+# train_set,test_set,validation_set = mySplitDataset(dataset.data,[0.7,0.2])
 
-print(train_set[0].text)
-print("TRAIN",len(train_set))
-print("TEST",len(test_set))
-print("VALIDATION",len(validation_set))
-# print("DATASET_DICT:",dataset.data.__dict__)
-# dataset.data.split(np.tile(0.1,10),random_state=0)
+# print("TRAIN",len(train_set))
+# print("TEST",len(test_set))
+# print("VALIDATION",len(validation_set))
+
 split_lengths = (int(len(dataset.data)/10))
 split_lengths = np.append(np.tile(split_lengths,9),len(dataset.data)-9*split_lengths).tolist()
-print("DATASET.DATA",dataset.data.fields)
-subsets = tud.random_split(dataset.data,split_lengths)
-
-# dataset.randomShuffle()
-# steps = np.delete(np.round(np.linspace(0,len(dataset),11)),0).astype(int)
-# last_step = 0
-
-
+# subsets = tud.random_split(dataset.data,split_lengths)
+print(dataset.data.__dict__.keys())
+subsets = mySplitDataset(dataset.data,np.tile(0.1,10),rand=True,dstype = "Tabular")
 for index in range(10):
 
-	# test_set = dataset.data[last_step:steps[index]]
-	# train_set = dataset.data[:last_step]+dataset.data[steps[index]:]
-	# last_step = steps[index]
-	
 	test_set = subsets[index]
+
+	print(subsets[:index]+subsets[index+1:])
 	train_set = subsets[:index]+subsets[index+1:]
-	train_set = [x.dataset for x in train_set]
-	print("0:",train_set[0][0].__dict__)
-	train_set =my_concatDataset(train_set)
+	# train_set = tud.Subset(subsets[0],[x for x in sub.indices for sub in subsets[:index]+subsets[index+1:]])
+	train_set =myConcatDataset(train_set)
 
-	# print("trainset_DICT:",test_set.dataset.__dict__.keys())
-	# print("TYPE",type(train_set[1]))
-	# print(type(train_set))
 	train_set_size = int(0.9*len(train_set))
-	train_set,validation_set = tud.random_split(train_set,[train_set_size,len(train_set)-train_set_size])
+	print([train_set_size,len(train_set)-train_set_size])
+	# print(tud.random_split(train_set,[train_set_size,len(train_set)-train_set_size]))
 
-	train_set = train_set.dataset
-	# print("1:",type(train_set))
-	validation_set = validation_set.dataset
+	train_set,validation_set = mySplitDataset(train_set,[0.9,0.1],rand=True)
+	# train_set,validation_set = tud.random_split(train_set,[train_set_size,len(train_set)-train_set_size])
+	print(len(train_set.dataset))
+	# train_set = train_set.dataset
+	# validation_set = validation_set.dataset
 	print("TRAIN_SET:",len(train_set))
 	print("TEST_SET:",len(test_set))
 	print("VALIDATION_SET:",len(validation_set))
