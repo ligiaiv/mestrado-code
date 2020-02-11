@@ -1,4 +1,4 @@
-from classifier import Classifier, datasetBuilder,train_model
+from classifier import Classifier, datasetBuilder,train_model,my_concatDataset
 from readFile import fileReader
 import os, pandas,torch
 import numpy as np
@@ -21,6 +21,10 @@ import helper
 #
 # Baseado no código da aula de pytorch de Heike Adel dada no congresso RANLP2019
 #
+
+#using cuda or not
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 # loading data
@@ -106,16 +110,18 @@ print(train_set[0].text)
 print("TRAIN",len(train_set))
 print("TEST",len(test_set))
 print("VALIDATION",len(validation_set))
-
+# print("DATASET_DICT:",dataset.data.__dict__)
 # dataset.data.split(np.tile(0.1,10),random_state=0)
 split_lengths = (int(len(dataset.data)/10))
 split_lengths = np.append(np.tile(split_lengths,9),len(dataset.data)-9*split_lengths).tolist()
-
+print("DATASET.DATA",dataset.data.fields)
 subsets = tud.random_split(dataset.data,split_lengths)
-print(subsets)
+
 # dataset.randomShuffle()
 # steps = np.delete(np.round(np.linspace(0,len(dataset),11)),0).astype(int)
 # last_step = 0
+
+
 for index in range(10):
 
 	# test_set = dataset.data[last_step:steps[index]]
@@ -124,37 +130,32 @@ for index in range(10):
 	
 	test_set = subsets[index]
 	train_set = subsets[:index]+subsets[index+1:]
-	train_set = tud.ConcatDataset(train_set)
+	train_set = [x.dataset for x in train_set]
+	print("0:",train_set[0][0].__dict__)
+	train_set =my_concatDataset(train_set)
+
+	# print("trainset_DICT:",test_set.dataset.__dict__.keys())
+	# print("TYPE",type(train_set[1]))
+	# print(type(train_set))
 	train_set_size = int(0.9*len(train_set))
 	train_set,validation_set = tud.random_split(train_set,[train_set_size,len(train_set)-train_set_size])
+
+	train_set = train_set.dataset
+	# print("1:",type(train_set))
+	validation_set = validation_set.dataset
 	print("TRAIN_SET:",len(train_set))
 	print("TEST_SET:",len(test_set))
 	print("VALIDATION_SET:",len(validation_set))
-	quit()
-quit()
-for train_index, test_index in kf.split(dataset):
-	print("TRAIN:", train_index, "TEST:", test_index)
-	quit()
-	#Create Iterators
-	train_set,test_set = dataset.data[train_index],dataset.data[test_index]
 
-	# train_set,validation_set = train_set
-	train_iter,val_iter = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = torch.device('cuda'), 
+	# train_loader = tud.DataLoader(train_set,batch_size=options["batch_size"],shuffle=True)
+	# val_loader = tud.DataLoader(validation_set,batch_size=options["batch_size"],shuffle=True)
+	# test_loader = tud.DataLoader(test_set,batch_size=options["batch_size"],shuffle=False)
+
+	train_loader,val_loader = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = device, 
 												sort_key =  lambda x: len(x.text),
 												sort_within_batch = False,repeat = False)
-	test_iter = Iterator(test_set,batch_size=options["batch_size"],device = torch.device('cuda'),sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
+	test_loader = Iterator(test_set,batch_size=options["batch_size"],device = device,sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
 
-
-
-	# X_train, X_test = data[train_index], data[test_index]
-	# y_train, y_test = targets[train_index], targets[test_index]
-
-	# train_model()
-	# confusion_matrix,acc_n,acc_cr = test_model(X_test,y_test)
-	# aucs_n.append(acc_n)
-	# aucs_cruz.append(acc_cr)
-
-	
-
+	train_model(options,train_loader,val_loader,optimizer,model,loss_function)	
 
 helper.evaluate_model(test_set, model, "test", sort=True)
