@@ -21,12 +21,13 @@ COPY . /opt/source-code
 
 #RUN pip3 install -r opt/source-code/requirements.txt
 
-RUN ls
-RUN ls opt/
-RUN ls opt/source-code/
+# RUN ls
+# RUN ls opt/
+# RUN ls opt/source-code/
 
 RUN chmod +x /opt/source-code/commands.sh
 # CMD [ "python", "./my_script.py" ]
+RUN mkdir -p opt/source-code/results
 
 ENTRYPOINT opt/source-code/commands.sh
 

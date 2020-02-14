@@ -1,4 +1,4 @@
-from classifier import Classifier, datasetBuilder,train_model,myConcatDataset,myDataset
+from classifier import Classifier, datasetBuilder,train_model,myConcatDataset,myDataset,mySplitDataset
 from readFile import fileReader
 import os, pandas,torch
 import numpy as np
@@ -6,12 +6,11 @@ from torch import nn,optim,randperm
 import torch.utils.data as tud
 from torchtext.data import Iterator, BucketIterator
 import torchtext.data as ttd
-from sklearn.model_selection import KFold
 import random
 
 import helper
 
-#
+KFOLD = 2
 #Read File
 
 #
@@ -34,30 +33,6 @@ path = '/'.join(path)+'/'
 #creating dataset
 dataset = datasetBuilder(path+'Datasets/',"labeled_data.csv")
 print("DATASET LEN:",len(dataset))
-def mySplitDataset(dataset,ratios,rand = False, dstype = None):
-		if np.sum(ratios) >1:
-				print("ERROR: ratios must sum 1 or less")
-		elif np.sum(ratios) <1:
-				ratios.append(0.1)
-		total = len(dataset)
-		sizes = []
-		sizes = np.round(np.array(ratios)*total).astype(np.int)
-		sizes[-1] = total - np.sum(sizes[0:-1])
-
-		start_point = 0
-		pieces = []
-		if random:
-			if dstype == "Tabular":
-				data = random.sample(dataset.examples,len(dataset))	
-			else:
-				data = random.sample(dataset.dataset,len(dataset))
-			# dataset = ttd.Dataset(data,dataset.fields)
-			# for size in pieces:
-		
-		for size in sizes:
-				pieces.append(myDataset(data[start_point:start_point+size],dataset.fields))
-				start_point+= size
-		return pieces
 
 
 
@@ -70,7 +45,7 @@ options = {
 				'hidden_lstm_dim': 200,
 				'bidirectional': True,
 				'num_layers': 2,
-				'num_epochs': 5,
+				'num_epochs': 2,
 				'batch_size': 64
 		  }
 
@@ -83,56 +58,47 @@ model = Classifier(options)
 
 
 loss_function = nn.NLLLoss()
-# for name, param in model.named_parameters():
-# 	if param.requires_grad:
-# 		print(name)
+
 optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
 
 
-kf = KFold(n_splits=10)
+split_lengths = (int(len(dataset.data)/KFOLD))
+split_lengths = np.append(np.tile(split_lengths,KFOLD-1),len(dataset.data)-(KFOLD-1)*split_lengths).tolist()
 
-# train_set,test_set,validation_set = mySplitDataset(dataset.data,[0.7,0.2])
-
-# print("TRAIN",len(train_set))
-# print("TEST",len(test_set))
-# print("VALIDATION",len(validation_set))
-
-split_lengths = (int(len(dataset.data)/10))
-split_lengths = np.append(np.tile(split_lengths,9),len(dataset.data)-9*split_lengths).tolist()
-# subsets = tud.random_split(dataset.data,split_lengths)
-print(dataset.data.__dict__.keys())
 subsets = mySplitDataset(dataset.data,np.tile(0.1,10),rand=True,dstype = "Tabular")
-for index in range(10):
-
+accs = []
+for index in range(KFOLD):
+	print("KFOLD:",index)
 	test_set = subsets[index]
+	print(test_set)
 
-	print(subsets[:index]+subsets[index+1:])
 	train_set = subsets[:index]+subsets[index+1:]
-	# train_set = tud.Subset(subsets[0],[x for x in sub.indices for sub in subsets[:index]+subsets[index+1:]])
 	train_set =myConcatDataset(train_set)
-
 	train_set_size = int(0.9*len(train_set))
-	print([train_set_size,len(train_set)-train_set_size])
-	# print(tud.random_split(train_set,[train_set_size,len(train_set)-train_set_size]))
 
 	train_set,validation_set = mySplitDataset(train_set,[0.9,0.1],rand=True)
-	# train_set,validation_set = tud.random_split(train_set,[train_set_size,len(train_set)-train_set_size])
-	print(len(train_set.dataset))
-	# train_set = train_set.dataset
-	# validation_set = validation_set.dataset
+
 	print("TRAIN_SET:",len(train_set))
 	print("TEST_SET:",len(test_set))
 	print("VALIDATION_SET:",len(validation_set))
-
+	print(train_set)
 	# train_loader = tud.DataLoader(train_set,batch_size=options["batch_size"],shuffle=True)
 	# val_loader = tud.DataLoader(validation_set,batch_size=options["batch_size"],shuffle=True)
 	# test_loader = tud.DataLoader(test_set,batch_size=options["batch_size"],shuffle=False)
-
+	
 	train_loader,val_loader = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = device, 
-												sort_key =  lambda x: len(x.text),
+												sort_key =  lambda x: len(x.text),sort = True,
 												sort_within_batch = False,repeat = False)
 	test_loader = Iterator(test_set,batch_size=options["batch_size"],device = device,sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
 
-	train_model(options,train_loader,val_loader,optimizer,model,loss_function)	
+	train_model(options= options,train_iter= train_loader,val_iter= val_loader,optimizer= optimizer,model= model,loss_function= loss_function)	
 
-helper.evaluate_model(test_set, model, "test", sort=True)
+	acc = helper.evaluate_model(test_loader, model, "test", sort=True)
+	print("ACCS",accs)
+	print("ACC",acc)
+	accs.append(acc)
+
+with open("results", "w") as outfile:
+	outfile.write(','.join([str(x) for x in accs]))
+
+

@@ -1,7 +1,7 @@
 import torch, torchtext
 from torch import nn, optim
 import numpy as np
-import os
+import os,random
 import torch.utils.data as tud
 from readFile import fileReader
 import spacy
@@ -112,45 +112,30 @@ class datasetBuilder():
 			self.TEXT.build_vocab(self.data, vectors="glove.6B.100d")
 			self.LABEL.build_vocab(self.data)
 
-
-		def splitDataset(self,train_split,val_split):
-
-			if(train_split+val_split)>=1:
-				print("Cada parte deve ser menor do que 1. As somas das partes devem ser menores que 1")
-				return
-			train_size = round(train_split*len(self.data))
-			test_size = round(val_split*len(self.data))
-			validation_size = (len(self.data)-train_size)-test_size
-
-			self.train_set,self.test_set,self.validation_set = self.data.split([train_size,test_size,validation_size])
-			
-			return self.train_set,self.test_set,self.validation_set
-				
 		def randomShuffle(self):
 			self.data = np.random.shuffle(self.data)
 
 class myDataset(Dataset):
 	def __init__(self,data,fields):
-		self.dataset = data
+		self.examples = data
 		self.fields = fields
 	
 	def __len__(self):
-		return len(self.dataset)
+		return len(self.examples)
 
-	
+	def __iter__(self):
+		for x in self.examples:
+			yield x
 
 	def __getitem__(self, idx):
-
-		# return {'text': self.dataset[idx].text, 
-		# 		'length': len(self.dataset[idx].text), 
-		# 		'label': self.dataset[idx].label
-		# 		}
-		return self.dataset[idx]
+		return self.examples[idx]
 
 # training loop
 def train_model(options,train_iter,val_iter,optimizer,model,loss_function):
 	for epoch in range(options['num_epochs']):
 		print("training epoch", epoch + 1)
+
+
 		# train model on training data
 		for batch in tqdm.tqdm(train_iter):		
 		# for batch in train_iter:
@@ -167,8 +152,9 @@ def train_model(options,train_iter,val_iter,optimizer,model,loss_function):
 			optimizer.step()
 
 		helper.evaluate_model(train_iter, model, "train", sort=True)
+		helper.evaluate_model(val_iter, model, "val", sort=True)
+
 		# monitor performance on dev data
-		helper.evaluate_model(val_iter, model, "dev", sort=True)
 
 
 
@@ -176,7 +162,6 @@ def train_model(options,train_iter,val_iter,optimizer,model,loss_function):
 class myConcatDataset(Dataset):
 
 	def __init__(self,datasets,fields = None):
-
 		self.dataset = None
 		self.indices = []
 		if hasattr(datasets[0], 'fields'):
@@ -188,10 +173,9 @@ class myConcatDataset(Dataset):
 		self.i = 0
 
 	def concat_datasets(self,datasets):
-
 		total_dataset = []
 		for subset in datasets:
-			total_dataset+=subset.dataset
+			total_dataset+=subset.examples
 		return total_dataset
 			
 
@@ -207,3 +191,29 @@ class myConcatDataset(Dataset):
 		# 		'label': self.dataset[idx].label
 		# 		}
 		return self.dataset[idx]
+
+def mySplitDataset(dataset,ratios,rand = False, dstype = None):
+	if np.sum(ratios) >1:
+			print("ERROR: ratios must sum 1 or less")
+	elif np.sum(ratios) <1:
+			ratios.append(0.1)
+	total = len(dataset)
+	sizes = []
+	sizes = np.round(np.array(ratios)*total).astype(np.int)
+	sizes[-1] = total - np.sum(sizes[0:-1])
+
+	start_point = 0
+	pieces = []
+	if rand:
+		if dstype == "Tabular":
+			data = random.sample(dataset.examples,len(dataset))	
+		else:
+			data = random.sample(dataset.dataset,len(dataset))
+		# dataset = ttd.Dataset(data,dataset.fields)
+		# for size in pieces:
+	
+	for size in sizes:
+			pieces.append(myDataset(data[start_point:start_point+size],dataset.fields))
+			start_point+= size
+	
+	return pieces

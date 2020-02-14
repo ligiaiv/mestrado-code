@@ -2,17 +2,17 @@ import numpy
 def sort_by_length(x, l, y):
         # print("l",l)
         l_sorted, permutation = l.sort(0, descending=True)
-        # print("permutation",permutation)
-        # print(x)
+
         x_sorted = x[:,permutation]
         y_sorted = y[permutation]
-        # print(x_sorted)
+
         return x_sorted, l_sorted, y_sorted
 
 def get_accuracy(hypos, refs):
+
         assert(len(hypos) == len(refs))
         correct = 0
-        print("hypos", numpy.bincount(numpy.array(hypos)))
+        # print("hypos", numpy.bincount(numpy.array(hypos)))
         for h, r in zip(hypos, refs):
                 if h == r:
                         correct += 1
@@ -22,7 +22,9 @@ def get_accuracy(hypos, refs):
 def evaluate_model(data_loader, model, set_name, sort=False):
         results_dev = []
         labels_dev = []
+        # print("HERE: evaluate_model - before for loop")
         for data in data_loader:
+                # print("HERE: evaluate_model - in for loop")
                 x,l = data.text
                 y = data.label
                 if sort:  # needed for LSTM with pack_padded_sequences
@@ -35,3 +37,4 @@ def evaluate_model(data_loader, model, set_name, sort=False):
                 labels_dev.extend(list(y.cpu().numpy()))
         accuracy = get_accuracy(results_dev, labels_dev)
         print("accuracy on " + set_name + ":", accuracy)
+        return accuracy
