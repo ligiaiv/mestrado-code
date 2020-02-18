@@ -1,0 +1,5 @@
+docker run --runtime=nvidia -v /home/cisne/hd/ligia/docker_builder/results:/opt/source-code/teste1/results -i ligia-teste1
+
+docker build -t teste1 .
+
+docker run -d --name ligia_torch --runtime nvidia -p 8888:8888 -v /home/cisne/hd/ligia/docker_builder/results:/opt/source-code/teste1/results -i ligia-teste1

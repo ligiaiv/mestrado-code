@@ -16,7 +16,13 @@ RUN pip3 install matplotlib
 RUN python3 -m spacy download en_core_web_sm
 RUN python3 -m spacy download pt_core_news_sm
 
-COPY . /opt/source-code
+COPY teste1/.vector_cache /opt/source-code/teste1/.vector_cache
+COPY teste1/*.py /opt/source-code/teste1/
+COPY Datasets /opt/source-code/Datasets
+COPY commands.sh /opt/source-code/
+COPY teste1/variables.json /opt/source-code/teste1/
+
+
 ##ADD requirements.txt
 
 #RUN pip3 install -r opt/source-code/requirements.txt
@@ -27,7 +33,7 @@ COPY . /opt/source-code
 
 RUN chmod +x /opt/source-code/commands.sh
 # CMD [ "python", "./my_script.py" ]
-RUN mkdir -p opt/source-code/results
+RUN mkdir -p opt/source-code/teste1/results
 
 ENTRYPOINT opt/source-code/commands.sh
 

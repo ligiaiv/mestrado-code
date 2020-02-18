@@ -1,16 +1,24 @@
 from classifier import Classifier, datasetBuilder,train_model,myConcatDataset,myDataset,mySplitDataset
 from readFile import fileReader
-import os, pandas,torch
+import os, pandas,torch,json
 import numpy as np
-from torch import nn,optim,randperm
+from torch import nn,optim
 import torch.utils.data as tud
 from torchtext.data import Iterator, BucketIterator
 import torchtext.data as ttd
-import random
+import random,sys
+from datetime import datetime
 
 import helper
 
-KFOLD = 2
+# import argparse
+
+# parser = argparse.ArgumentParser()
+# parser.add_argument("-kf", help="number of folds, default 10")
+# parser.add_argument("-e", help="number of epochs, 5")
+
+# args = parser.parse_args()
+# KFOLD = args.kf
 #Read File
 
 #
@@ -18,8 +26,11 @@ KFOLD = 2
 #
 
 #using cuda or not
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("CUDA is available",torch.cuda.is_available())
+n_gpu = torch.cuda.device_count()
+# torch.cuda.get_device_name(0)
 
 # loading data
 path = os.getcwd().split('/')
@@ -37,17 +48,21 @@ print("DATASET LEN:",len(dataset))
 
 
 #NN options
+options = json.load(open("variables.json","r")) 
+options["vocab_size"] = len(dataset.TEXT.vocab)
+options["num_labels"] = len(dataset.LABEL.vocab)
 
-options = {
-				'vocab_size': len(dataset.TEXT.vocab),
-				'emb_dim': 100,
-				'num_labels': len(dataset.LABEL.vocab),
-				'hidden_lstm_dim': 200,
-				'bidirectional': True,
-				'num_layers': 2,
-				'num_epochs': 2,
-				'batch_size': 64
-		  }
+print(options)
+# options = {
+# 				'vocab_size': len(dataset.TEXT.vocab),
+# 				'emb_dim': 100,
+# 				'num_labels': len(dataset.LABEL.vocab),
+# 				'hidden_lstm_dim': 200,
+# 				'bidirectional': True,
+# 				'num_layers': 2,
+# 				'num_epochs': args.e,
+# 				'batch_size': 64
+# 		  }
 
 
 
@@ -60,7 +75,7 @@ model = Classifier(options)
 loss_function = nn.NLLLoss()
 
 optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
-
+KFOLD = options["kfold"]
 
 split_lengths = (int(len(dataset.data)/KFOLD))
 split_lengths = np.append(np.tile(split_lengths,KFOLD-1),len(dataset.data)-(KFOLD-1)*split_lengths).tolist()
@@ -98,7 +113,9 @@ for index in range(KFOLD):
 	print("ACC",acc)
 	accs.append(acc)
 
-with open("results", "w") as outfile:
+now = datetime.now()
+current_time = now.strftime("%m-%d-%Y__%H:%M:%S")
+with open("results/"+current_time, "w") as outfile:
 	outfile.write(','.join([str(x) for x in accs]))
 
 
