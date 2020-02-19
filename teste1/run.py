@@ -1,13 +1,17 @@
-from classifier import Classifier, datasetBuilder,train_model,myConcatDataset,myDataset,mySplitDataset
+from classifier import Classifier, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset
 from readFile import fileReader
-import os, pandas,torch,json
+import os
+import pandas
+import torch
+import json
 import numpy as np
-from torch import nn,optim
+from torch import nn, optim
 import torch.utils.data as tud
 from torchtext.data import Iterator, BucketIterator
 import torchtext.data as ttd
-import random,sys
-from datetime import datetime
+import random
+import sys
+from datetime import datetime, timezone
 
 import helper
 
@@ -19,16 +23,16 @@ import helper
 
 # args = parser.parse_args()
 # KFOLD = args.kf
-#Read File
+# Read File
 
 #
 # Baseado no código da aula de pytorch de Heike Adel dada no congresso RANLP2019
 #
 
-#using cuda or not
+# using cuda or not
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("CUDA is available",torch.cuda.is_available())
+print("CUDA is available", torch.cuda.is_available())
 n_gpu = torch.cuda.device_count()
 # torch.cuda.get_device_name(0)
 
@@ -41,17 +45,15 @@ path = '/'.join(path)+'/'
 # setting hyperparameters
 
 
-#creating dataset
-dataset = datasetBuilder(path+'Datasets/',"labeled_data.csv")
-print("DATASET LEN:",len(dataset))
+# creating dataset
+dataset = datasetBuilder(path+'Datasets/', "labeled_data.csv")
+print("DATASET LEN:", len(dataset))
 
 
-
-#NN options
-options = json.load(open("variables.json","r")) 
+# NN options
+options = json.load(open("variables.json", "r"))
 options["vocab_size"] = len(dataset.TEXT.vocab)
 options["num_labels"] = len(dataset.LABEL.vocab)
-
 print(options)
 # options = {
 # 				'vocab_size': len(dataset.TEXT.vocab),
@@ -65,57 +67,81 @@ print(options)
 # 		  }
 
 
-
-
 # initializing model and defining loss function and optimizer
-model = Classifier(options)
 # model.cuda()  # do this before instantiating the optimizer
 
 
-loss_function = nn.NLLLoss()
-
-optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
 KFOLD = options["kfold"]
 
 split_lengths = (int(len(dataset.data)/KFOLD))
-split_lengths = np.append(np.tile(split_lengths,KFOLD-1),len(dataset.data)-(KFOLD-1)*split_lengths).tolist()
+split_lengths = np.append(np.tile(split_lengths, KFOLD-1),
+                          len(dataset.data)-(KFOLD-1)*split_lengths).tolist()
 
-subsets = mySplitDataset(dataset.data,np.tile(0.1,10),rand=True,dstype = "Tabular")
+subsets = mySplitDataset(dataset.data, np.tile(
+    0.1, 10), rand=True, dstype="Tabular")
 accs = []
+accs_dict = []
 for index in range(KFOLD):
-	print("KFOLD:",index)
-	test_set = subsets[index]
-	print(test_set)
+    print("KFOLD:", index)
+    #
+    #	Create objects to run
+    #	obs: recreate model every time to restart weights
+    #
+    print(subsets[0].fields)
+    model = Classifier(options, subsets[0].fields['text'].vocab)
+    optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
+    loss_function = nn.NLLLoss()
 
-	train_set = subsets[:index]+subsets[index+1:]
-	train_set =myConcatDataset(train_set)
-	train_set_size = int(0.9*len(train_set))
+    #
+    #	Create sets
+    #
+    test_set = subsets[index]
 
-	train_set,validation_set = mySplitDataset(train_set,[0.9,0.1],rand=True)
+    train_set = subsets[:index]+subsets[index+1:]
+    train_set = myConcatDataset(train_set)
+    train_set_size = int(0.9*len(train_set))
 
-	print("TRAIN_SET:",len(train_set))
-	print("TEST_SET:",len(test_set))
-	print("VALIDATION_SET:",len(validation_set))
-	print(train_set)
-	# train_loader = tud.DataLoader(train_set,batch_size=options["batch_size"],shuffle=True)
-	# val_loader = tud.DataLoader(validation_set,batch_size=options["batch_size"],shuffle=True)
-	# test_loader = tud.DataLoader(test_set,batch_size=options["batch_size"],shuffle=False)
-	
-	train_loader,val_loader = BucketIterator.splits(datasets=(train_set,validation_set),batch_sizes=(options["batch_size"],options["batch_size"]),device = device, 
-												sort_key =  lambda x: len(x.text),sort = True,
-												sort_within_batch = False,repeat = False)
-	test_loader = Iterator(test_set,batch_size=options["batch_size"],device = device,sort=False,sort_within_batch=False,repeat=False,sort_key=lambda x: len(x.text))
+    train_set, validation_set = mySplitDataset(
+        train_set, [0.9, 0.1], rand=True)
 
-	train_model(options= options,train_iter= train_loader,val_iter= val_loader,optimizer= optimizer,model= model,loss_function= loss_function)	
+    print("TRAIN_SET:", len(train_set))
+    print("TEST_SET:", len(test_set))
+    print("VALIDATION_SET:", len(validation_set))
 
-	acc = helper.evaluate_model(test_loader, model, "test", sort=True)
-	print("ACCS",accs)
-	print("ACC",acc)
-	accs.append(acc)
+    #
+    #	Create Loaders
+    #
+    train_loader, val_loader = BucketIterator.splits(datasets=(train_set, validation_set), batch_sizes=(options["batch_size"], options["batch_size"]), device=device,
+                                                     sort_key=lambda x: len(x.text), sort=True,
+                                                     sort_within_batch=False, repeat=False)
+    test_loader = Iterator(test_set, batch_size=options["batch_size"], device=device,
+                           sort=False, sort_within_batch=False, repeat=False, sort_key=lambda x: len(x.text))
 
-now = datetime.now()
+    #
+    #	Train model
+    #
+    accs_train, accs_val = train_model(options=options, train_iter=train_loader,
+                                       val_iter=val_loader, optimizer=optimizer, model=model, loss_function=loss_function)
+
+    #
+    #	Test and save
+    #
+    acc_test = helper.evaluate_model(
+        test_loader, model, "test", options["num_labels"],  sort=True)
+    # print("ACCS",accs)
+    # print("ACC",acc_test)
+    accs_dict.append({
+        "train": accs_train,
+        "validation": accs_val,
+        "test": acc_test
+    })
+    # accs.append(acc)
+
+#
+#	Print results to file
+#
+now = datetime.now(timezone.utc)
 current_time = now.strftime("%m-%d-%Y__%H:%M:%S")
 with open("results/"+current_time, "w") as outfile:
-	outfile.write(','.join([str(x) for x in accs]))
-
-
+    # outfile.write('|'.join([str(x) for x in accs]))
+    json.dump(accs_dict, outfile)

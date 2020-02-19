@@ -1,9 +1,10 @@
 {
-    "emb_dim": 100,
-    "hidden_lstm_dim": 200,
-    "bidirectional": true,
-    "num_layers": 2,
-    "num_epochs": 2,
-    "batch_size": 64,
-    "kfold":10
+	"emb_dim": 200,
+	"freeze_emb": true,
+	"hidden_lstm_dim": 100,
+	"bidirectional": true,
+	"num_layers": 1,
+	"num_epochs": 3,
+	"batch_size": 128,
+	"kfold": 3
 }
