@@ -1,4 +1,4 @@
-from classifier import Classifier, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset
+from classifier import Classifier, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset,BertForSequenceClassification
 from readFile import fileReader
 import os
 import pandas
@@ -44,17 +44,17 @@ path = '/'.join(path)+'/'
 
 # setting hyperparameters
 
+options = json.load(open("variables.json", "r"))
 
 # creating dataset
-dataset = datasetBuilder(path+'Datasets/', "labeled_data.csv")
+dataset = datasetBuilder(path+'Datasets/', "labeled_data.csv",model = options["architecture"])
 print("DATASET LEN:", len(dataset))
 
 
 # NN options
-options = json.load(open("variables.json", "r"))
 options["vocab_size"] = len(dataset.TEXT.vocab)
 options["num_labels"] = len(dataset.LABEL.vocab)
-print(options)
+print("\n\tOPTIONS:",options)
 # options = {
 # 				'vocab_size': len(dataset.TEXT.vocab),
 # 				'emb_dim': 100,
@@ -81,14 +81,18 @@ subsets = mySplitDataset(dataset.data, np.tile(
     0.1, 10), rand=True, dstype="Tabular")
 accs = []
 accs_dict = []
+test_metrics = np.ndarray((4,0))
+train_val_metrics = np.ndarray((2,options["num_epochs"],0))
 for index in range(KFOLD):
     print("KFOLD:", index)
     #
     #	Create objects to run
     #	obs: recreate model every time to restart weights
     #
-    print(subsets[0].fields)
-    model = Classifier(options, subsets[0].fields['text'].vocab)
+    if options["model"] == "bert":
+        model = BertForSequenceClassification(options)
+    else:
+        model = Classifier(options, subsets[0].fields['text'].vocab)
     optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
     loss_function = nn.NLLLoss()
 
@@ -120,28 +124,37 @@ for index in range(KFOLD):
     #
     #	Train model
     #
-    accs_train, accs_val = train_model(options=options, train_iter=train_loader,
+    acc_train, acc_val = train_model(options=options, train_iter=train_loader,
                                        val_iter=val_loader, optimizer=optimizer, model=model, loss_function=loss_function)
-
+    # print("np.array([acc_train,acc_val])",np.array([acc_train,acc_val]),np.array([acc_train,acc_val]).shape)
+    train_val_metrics = np.dstack((train_val_metrics,np.array([acc_train,acc_val])))
+    print("train_val_metrics",train_val_metrics.shape)
+    # print
     #
     #	Test and save
     #
-    acc_test = helper.evaluate_model(
-        test_loader, model, "test", options["num_labels"],  sort=True)
-    # print("ACCS",accs)
-    # print("ACC",acc_test)
-    accs_dict.append({
-        "train": accs_train,
-        "validation": accs_val,
-        "test": acc_test
-    })
+    aprf_test = helper.evaluate_model(test_loader, model, "test", options["num_labels"],  sort=True)
+    # print("aprf",np.array(aprf_test),np.array(aprf_test).shape)
+    test_metrics = np.hstack((test_metrics,np.expand_dims(np.array(aprf_test),axis = 1)))
+    # accs_dict.append({
+    #     "train": accs_train,
+    #     "validation": accs_val,
+    #     "test": acc_test
+    # })
+    
     # accs.append(acc)
 
 #
 #	Print results to file
 #
+# print("train_val_metrics",train_val_metrics.shape)
+# print("test_metrics",test_metrics.shape)
+results_dict = {
+    "train_val":train_val_metrics.tolist(),
+    "test":test_metrics.tolist()
+}
 now = datetime.now(timezone.utc)
 current_time = now.strftime("%m-%d-%Y__%H:%M:%S")
-with open("results/"+current_time, "w") as outfile:
+with open("results/out_"+current_time+".json", "w") as outfile:
     # outfile.write('|'.join([str(x) for x in accs]))
-    json.dump(accs_dict, outfile)
+    json.dump(results_dict, outfile)

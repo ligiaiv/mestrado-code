@@ -11,6 +11,9 @@ from torchtext.datasets import Multi30k
 from torchtext.data import Field, BucketIterator, TabularDataset, Dataset
 import helper
 import tqdm
+from transformers import BertTokenizer, BertModel
+import copy
+
 
 
 class Classifier(nn.Module):
@@ -74,11 +77,15 @@ class Classifier(nn.Module):
 
 
 class datasetBuilder():
-    def __init__(self, path, filename_data, filename_labels=None):
+    def __init__(self, path, filename_data,model, filename_labels=None):
         self.en = spacy.load('en_core_web_sm')
+        tokenizer = self.tokenizer
+        if model == "bert":
+            self.bertTokenizer=BertTokenizer.from_pretrained('bert-base-uncased')
+            tokenizer = self.bertTokenizer.tokenize
 
         self.TEXT = Field(sequential=True,
-                          tokenize=self.tokenizer,
+                          tokenize=tokenizer,
                           init_token='<sos>',
                           eos_token='<eos>',
                           lower=True,
@@ -116,6 +123,7 @@ class datasetBuilder():
 
     def tokenizer(self, text):  # create a tokenizer function
         return [tok.text for tok in self.en.tokenizer(text)]
+        
 
     def preprocessData(self):
 
@@ -165,10 +173,10 @@ def train_model(options, train_iter, val_iter, optimizer, model, loss_function):
             loss.backward()
             optimizer.step()
 
-        accs_train.append(helper.evaluate_model(
-            train_iter, model, "train", options["num_labels"], sort=True))
-        accs_val.append(helper.evaluate_model(val_iter, model,
-                                              "val", options["num_labels"], sort=True))
+        acc_train,_,_,_ = helper.evaluate_model(train_iter, model, "train", options["num_labels"], sort=True)
+        accs_train.append(acc_train)
+        acc_val,_,_,_ = helper.evaluate_model(val_iter, model,"val", options["num_labels"], sort=True)
+        accs_val.append(acc_val)
 
     return (accs_train, accs_val)
     # monitor performance on dev data
@@ -231,3 +239,101 @@ def mySplitDataset(dataset, ratios, rand=False, dstype=None):
         start_point += size
 
     return pieces
+
+
+class BertForSequenceClassification(nn.Module):
+  
+    def __init__(self, options):
+        super(BertForSequenceClassification, self).__init__()
+        self.num_labels = options["num_labels"]
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.dropout = nn.Dropout(options["dropout"])
+        self.classifier = nn.Linear(options["hidden_size"], options["num_labels"])
+        nn.init.xavier_normal_(self.classifier.weight)
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        return logits
+
+def train_bert_model(model, criterion, optimizer, scheduler, num_epochs=25):
+    print('starting')
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_loss = 100
+
+    for epoch in range(num_epochs):
+        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+        print('-' * 10)
+
+        # Each epoch has a training and validation phase
+        for phase in ['train', 'val']:
+            if phase == 'train':
+                scheduler.step()
+                model.train()  # Set model to training mode
+            else:
+                model.eval()   # Set model to evaluate mode
+
+            running_loss = 0.0
+            
+            sentiment_corrects = 0
+            
+            
+            # Iterate over data.
+            for inputs, sentiment in dataloaders_dict[phase]:
+                #inputs = inputs
+                #print(len(inputs),type(inputs),inputs)
+                #inputs = torch.from_numpy(np.array(inputs)).to(device) 
+                inputs = inputs.to(device) 
+
+                sentiment = sentiment.to(device)
+                
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward
+                # track history if only in train
+                with torch.set_grad_enabled(phase == 'train'):
+                    #print(inputs)
+                    outputs = model(inputs)
+
+                    outputs = F.softmax(outputs,dim=1)
+                    
+                    loss = criterion(outputs, torch.max(sentiment.float(), 1)[1])
+                    # backward + optimize only if in training phase
+                    if phase == 'train':
+                        
+                        loss.backward()
+                        optimizer.step()
+
+                # statistics
+                running_loss += loss.item() * inputs.size(0)
+
+                
+                sentiment_corrects += torch.sum(torch.max(outputs, 1)[1] == torch.max(sentiment, 1)[1])
+
+                
+            epoch_loss = running_loss / dataset_sizes[phase]
+
+            
+            sentiment_acc = sentiment_corrects.double() / dataset_sizes[phase]
+
+            print('{} total loss: {:.4f} '.format(phase,epoch_loss ))
+            print('{} sentiment_acc: {:.4f}'.format(
+                phase, sentiment_acc))
+
+            if phase == 'val' and epoch_loss < best_loss:
+                print('saving with loss of {}'.format(epoch_loss),
+                      'improved over previous {}'.format(best_loss))
+                best_loss = epoch_loss
+                best_model_wts = copy.deepcopy(model.state_dict())
+                torch.save(model.state_dict(), 'bert_model_test.pth')
+
+
+        print()
+
+    print('Best val Acc: {:4f}'.format(float(best_loss)))
+
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+    return model
