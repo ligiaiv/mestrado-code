@@ -47,6 +47,8 @@ class Classifier(nn.Module):
     def forward(self, x, length):
 
         batch_size = x.size()[1]
+        print(x)
+        quit()
         embeddings = self.embedding(x)
         embeddings = nn.utils.rnn.pack_padded_sequence(
             embeddings, length, batch_first=False)
@@ -78,11 +80,16 @@ class Classifier(nn.Module):
 
 class datasetBuilder():
     def __init__(self, path, filename_data,model, filename_labels=None):
+
+        # load tokenizer modules
         self.en = spacy.load('en_core_web_sm')
-        tokenizer = self.tokenizer
+        self.bertTokenizer=BertTokenizer.from_pretrained('bert-base-uncased')
+
         if model == "bert":
-            self.bertTokenizer=BertTokenizer.from_pretrained('bert-base-uncased')
             tokenizer = self.bertTokenizer.tokenize
+            print("Bert Tokenizer")
+        else:
+            tokenizer = self.spacy_tokenizer
 
         self.TEXT = Field(sequential=True,
                           tokenize=tokenizer,
@@ -102,6 +109,7 @@ class datasetBuilder():
 
         self.loadFile()
 
+
     def loadFile(self):
 
         if self.path == None:
@@ -110,7 +118,7 @@ class datasetBuilder():
             self.path = '/'.join(self.path)+'/Datasets/'
         self.data = TabularDataset.splits(path=self.path, skip_header=True, train=self.filename_data, format='csv', fields=[
                                           ('n', None), ('id', None), ('text', self.TEXT), ('label', self.LABEL)])[0]
-
+        # print(self.data.examples[0].text)
         self.preprocessData()
 
     def __len__(self):
@@ -121,14 +129,18 @@ class datasetBuilder():
     #                 'length': len(self.data[idx].text),
     #                 'y': self.data[idx].label}
 
-    def tokenizer(self, text):  # create a tokenizer function
+    def spacy_tokenizer(self, text):  # create a tokenizer function
         return [tok.text for tok in self.en.tokenizer(text)]
         
 
     def preprocessData(self):
 
         self.TEXT.build_vocab(self.data, vectors="glove.6B.100d")
+        tokenizer.convert_tokens_to_ids(tokenized_text)
+
         self.LABEL.build_vocab(self.data)
+
+        print(self.data.examples[0].text)
 
     def randomShuffle(self):
         self.data = np.random.shuffle(self.data)

@@ -9,6 +9,6 @@
 	"num_epochs": 3,
 	"batch_size": 128,
 	"kfold": 1,
-	"architecture": "bert",
+	"architecture": "lstm",
 	"seq_len": 128
 }
