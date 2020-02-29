@@ -3,6 +3,7 @@
 *embedding*
 *.vector_cache/
 .vscode/
+teste1/results/
 # results_from*
 
 # !results_from*/*.py
