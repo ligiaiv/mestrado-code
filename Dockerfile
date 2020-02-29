@@ -10,7 +10,7 @@ RUN pip3 install -U spacy
 RUN pip3 install -U spacy-lookups-data
 RUN pip3 install torchtext
 RUN pip3 install matplotlib
-
+RUN pip3 install transformers
 #installing spacy dicts
 
 RUN python3 -m spacy download en_core_web_sm

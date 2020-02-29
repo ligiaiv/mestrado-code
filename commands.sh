@@ -6,7 +6,7 @@ ls
 cd teste1/
 pwd 
 ls
-python3 -u run.py
+python3 -u run.py | tee results/log.txt
 pwd
 ls
 cd results

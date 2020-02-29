@@ -2,13 +2,13 @@
 	"emb_dim": 200,
 	"freeze_emb": true,
 	"hidden_lstm_dim": 100,
-	"hidden_size":100,
+	"hidden_size_bert":768,
 	"bidirectional": true,
 	"dropout": 0.5,
 	"num_layers": 1,
-	"num_epochs": 5,
-	"batch_size": 128,
-	"kfold": 10,
+	"num_epochs": 1,
+	"batch_size": 6,
+	"kfold": 2,
 	"architecture": "bert",
-	"seq_len": 64
+	"seq_len": 4
 }

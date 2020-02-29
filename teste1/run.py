@@ -42,19 +42,22 @@ n_gpu = torch.cuda.device_count()
 #
 # Step 1:   loading data
 #
+print("Reading data file ...")
 path = os.getcwd().split('/')
 path.pop()
 path = '/'.join(path)+'/'
 # pretrained_embeddings = torch.tensor(numpy.load(path + "Embeddings/"+"embeddings.npy"))
 
     # setting hyperparameters
-
+print("Reading variables file...")
 options = json.load(open("variables.json", "r"))
 
     # creating dataset
 dataset = datasetBuilder(path+'Datasets/', "labeled_data.csv",options = options)
 print("DATASET LEN:", len(dataset))
-print("TEXT",dataset.data.examples[0].text)
+
+
+# print("TEXT",dataset.data.examples[0].text)
 
 # more NN options
 if options["architecture"]=="bert":
@@ -69,15 +72,19 @@ print("\n\tOPTIONS:",options)
 # initializing model and defining loss function and optimizer
 # model.cuda()  # do this before instantiating the optimizer
 
+# short sample of DATASET for developing
+
+dataset = mySplitDataset(dataset.data,np.tile(0.05,20),rand=True)[0]
+print("Short DATASET LEN:", len(dataset))
 
 KFOLD = options["kfold"]
 
 # splitting dataset
-split_lengths = (int(len(dataset.data)/KFOLD))
+split_lengths = (int(len(dataset)/KFOLD))
 split_lengths = np.append(np.tile(split_lengths, KFOLD-1),
-                          len(dataset.data)-(KFOLD-1)*split_lengths).tolist()
+                          len(dataset)-(KFOLD-1)*split_lengths).tolist()
 
-subsets = mySplitDataset(dataset.data, np.tile(
+subsets = mySplitDataset(dataset, np.tile(
     0.1, 10), rand=True, dstype="Tabular")
 
 # inicializing arrays to save metrics
@@ -107,14 +114,14 @@ for index in range(KFOLD):
     train_set = subsets[:index]+subsets[index+1:]
     train_set = myConcatDataset(train_set)
     train_set_size = int(0.9*len(train_set))
-    print("TTRAIN_CONCAT_SET:\t",train_set.examples[0].text)
+    # print("TTRAIN_CONCAT_SET:\t",train_set.examples[0].text)
     train_set, validation_set = mySplitDataset(
         train_set, [0.9, 0.1], rand=True)
 
     print("TRAIN_SET:", len(train_set))
     print("TEST_SET:", len(test_set))
     print("VALIDATION_SET:", len(validation_set))
-    print("TRAIN SET Sample: ",train_set.examples[0].text)
+    # print("TRAIN SET Sample: ",train_set.examples[0].text)
 
     #
     #	Create Loaders
@@ -136,7 +143,7 @@ for index in range(KFOLD):
     #
     #	Test and save
     #
-    aprf_test = helper.evaluate_model(test_loader, model, "test", options["num_labels"],  sort=True)
+    aprf_test = helper.evaluate_model(test_loader, model, "test", options["num_labels"], architecture = options["architecture"], sort=True)
     test_metrics = np.hstack((test_metrics,np.expand_dims(np.array(aprf_test),axis = 1)))
 
     # end loop    
@@ -144,6 +151,7 @@ for index in range(KFOLD):
 #
 #	Print results to file
 #
+
 results_dict = {
     "train_val":train_val_metrics.tolist(),
     "test":test_metrics.tolist(),
@@ -151,5 +159,7 @@ results_dict = {
 }
 now = datetime.now(timezone.utc)
 current_time = now.strftime("%m-%d-%Y__%H:%M:%S")
+print("Writing results to file...")
 with open("results/out_"+current_time+".json", "w") as outfile:
     json.dump(results_dict, outfile)
+print("Done!")

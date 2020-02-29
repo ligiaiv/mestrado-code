@@ -3,3 +3,7 @@ docker run --runtime=nvidia -v /home/cisne/hd/ligia/docker_builder/results:/opt/
 docker build -t teste1 .
 
 docker run -d --name ligia_torch --runtime nvidia -p 8888:8888 -v /home/cisne/hd/ligia/docker_builder/results:/opt/source-code/teste1/results -i ligia-teste1
+
+docker run -d -p 8000:8000 -p 9999:9000 --name=portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer
+
+172.20.24.111:9999
