@@ -65,10 +65,14 @@ def evaluate_model(data_loader, model, set_name, n_labels,architecture, sort=Fal
 		else:
 			result = model(x, l)
 		argmax = result.argmax(dim=1).cpu().numpy()
-
+		
 		ohk_results = np.eye(n_labels)[argmax]
 		ohk_labels = np.eye(n_labels)[y]
 
+
+		if ohk_labels.ndim == 1:
+			ohk_labels = np.expand_dims(ohk_labels,axis = 0)
+		
 		# RGMAX",argmax.shape)
 
 		results_dev = np.concatenate((results_dev, ohk_results), axis=0)

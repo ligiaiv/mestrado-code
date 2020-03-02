@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from classifier import Classifier, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset,BertForSequenceClassification
+from classifier import LSTMClassifier,CNN1DforSentenceClassification, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset,BertForSequenceClassification
 from readFile import fileReader
 import os
 import pandas
@@ -74,19 +74,17 @@ print("\n\tOPTIONS:",options)
 
 # short sample of DATASET for developing
 
-dataset = mySplitDataset(dataset.data,np.tile(0.05,20),rand=True)[0]
-print("Short DATASET LEN:", len(dataset))
+# dataset = mySplitDataset(dataset.data,np.tile(0.05,20),rand=True)[0]
+# print("Short DATASET LEN:", len(dataset))
 
 KFOLD = options["kfold"]
-
+# KFOLD = 2
 # splitting dataset
-split_lengths = (int(len(dataset)/KFOLD))
-split_lengths = np.append(np.tile(split_lengths, KFOLD-1),
-                          len(dataset)-(KFOLD-1)*split_lengths).tolist()
 
-subsets = mySplitDataset(dataset, np.tile(
-    0.1, 10), rand=True, dstype="Tabular")
+subsets = mySplitDataset(dataset.data, np.tile(
+    1/KFOLD, KFOLD), rand=True, dstype="Tabular")
 
+# subsets = subsets[:10]
 # inicializing arrays to save metrics
 test_metrics = np.ndarray((4,0))
 train_val_metrics = np.ndarray((2,options["num_epochs"],0))
@@ -101,8 +99,13 @@ for index in range(KFOLD):
     #
     if options["architecture"] == "bert":
         model = BertForSequenceClassification(options)
+    elif options["architecture"]=="lstm":
+        model = LSTMClassifier(options, subsets[0].fields['text'].vocab)
+    elif options["architecture"] == "cnn":
+        model = CNN1DforSentenceClassification(options, subsets[0].fields['text'].vocab)
     else:
-        model = Classifier(options, subsets[0].fields['text'].vocab)
+        print("ERROR: architecture provided"+model["architecture"]+"does not match any option")
+        quit()
     optimizer = optim.Adam(model.parameters(), weight_decay=1e-5)
     loss_function = nn.NLLLoss()
 

@@ -16,9 +16,9 @@ import copy
 
 
 
-class Classifier(nn.Module):
+class LSTMClassifier(nn.Module):
 	def __init__(self, options, pretrained_embedding=None):
-		super(Classifier, self).__init__()
+		super(LSTMClassifier, self).__init__()
 		self.options = options
 
 		self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],
@@ -259,7 +259,9 @@ def mySplitDataset(dataset, ratios, rand=False, dstype=None):
 	if np.sum(ratios) > 1:
 		print("ERROR: ratios must sum 1 or less")
 	elif np.sum(ratios) < 1:
-		ratios.append(0.1)
+		print(np.sum(ratios))
+		np.append(ratios,0.1)
+		# ratios.append(0.1)
 	total = len(dataset)
 	sizes = []
 	sizes = np.round(np.array(ratios)*total).astype(np.int)
@@ -292,6 +294,8 @@ class BertForSequenceClassification(nn.Module):
 		self.dropout = nn.Dropout(options["dropout"])
 		self.classifier = nn.Linear(options["hidden_size_bert"], options["num_labels"])
 		nn.init.xavier_normal_(self.classifier.weight)
+		self.softmax = nn.LogSoftmax(dim=1)
+
 	def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
 		#changed from 'output_all_encoded_layers' to 'output_hidden_states' and put in the configuration
 		# print("input_ids",input_ids.shape)
@@ -300,6 +304,76 @@ class BertForSequenceClassification(nn.Module):
 		pooled_output = self.dropout(pooled_output)
 		# print("pooled_output_dropout",pooled_output.shape)
 		logits = self.classifier(pooled_output)
+		scores = self.softmax(logits)
+		return scores
 
-		return logits
+
+class CNN1DforSentenceClassification(nn.Module):
+  
+	def __init__(self, options,pretrained_embedding = None):
+		super(CNN1DforSentenceClassification, self).__init__()
+		self.options = options
+
+		self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],
+									  embedding_dim=options["emb_dim"],
+									  padding_idx=0)
+
+		if pretrained_embedding is not None:
+			print("\n\t-Using pre-trained embedding")
+			self.embedding.from_pretrained(
+				pretrained_embedding.vectors, freeze=options["freeze_emb"])
+		# self.embedding.load_state_dict()
+		
+		# self.linear = nn.Linear(in_features=lstm_out_size,
+		# 						out_features=options["num_labels"])
+		# self.softmax = nn.LogSoftmax(dim=1)
+
+		self.dropout_input = nn.Dropout2d(0.25)
+		
+		conv1 = nn.Sequential(
+			nn.Conv1d(options["emb_dim"],100,3),
+			nn.ReLU(),
+			nn.MaxPool1d(3)
+		)
+		conv2 = nn.Sequential(
+			nn.Conv1d(100,100,4),
+			nn.ReLU(),
+			nn.MaxPool1d(4)
+		)
+		conv3 = nn.Sequential(
+			nn.Conv1d(100,100,5),
+			nn.ReLU(),
+			nn.MaxPool1d(5)
+		)
+		self.conv = nn.Sequential(conv1,conv2,conv3)
+		self.dropout_output = nn.Dropout2d(0.5)
+		self.activation1 = nn.ReLU()
+		self.dense = nn.Linear(100,options["num_labels"])
+		self.activation2 = nn.Softmax()
+		
+
+	def forward(self, x, length):
+		
+		
+		batch_size = x.size()[1]
+		# print("x size in forward:",x.size())
+		# print("x in",x)
+		
+		embeddings = self.embedding(x)
+		# embeddings = nn.utils.rnn.pack_padded_sequence(
+		# 	embeddings, length, batch_first=False)
+
+		# outputs, (ht, ct) = self.lstm(embeddings)
+
+		# outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(
+		# 	outputs, batch_first=False)
+
+		x = self.dropout_input(x)
+		x = self.conv(x)
+		x = self.dropout_output(x)
+		x = self.activation1(x)
+		x = self.dense(x)
+		scores = self.activation2(x)#softmax
+		# linear_out = self.linear(lstm_out)
+		# scores = self.softmax(linear_out)
 

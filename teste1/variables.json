@@ -6,9 +6,9 @@
 	"bidirectional": true,
 	"dropout": 0.5,
 	"num_layers": 1,
-	"num_epochs": 1,
-	"batch_size": 6,
+	"num_epochs": 2,
+	"batch_size": 128,
 	"kfold": 2,
-	"architecture": "bert",
-	"seq_len": 4
+	"architecture": "cnn",
+	"seq_len": 64
 }

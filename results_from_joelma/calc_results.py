@@ -6,15 +6,18 @@ import matplotlib.pyplot as plt
 from itertools import permutations 
 
 
-FILE = "/out_02-27-2020__15:26:01.json"
+# FILE = "/out_03-02-2020__19:12:31.json"
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-# print(dir_path)
+print(dir_path)
 
 for (dirpath, dirnames, filenames) in os.walk(dir_path):
-    print(filenames)
+    print("filenames:",filenames)
+filenames = os.listdir(dir_path) 
+filenames.sort()
+FILE = filenames[-1]
 
-with open(dir_path+FILE, "r") as read_file:
+with open(dir_path+"/"+FILE, "r") as read_file:
     in_js = json.load(read_file)
 # in_df = pd.read_csv(dir_path+"/"+FILE,delimiter='|',dtype=float,header=None)
 # in_np = in_df.values
@@ -27,9 +30,11 @@ print(train_val.shape)
 #
 #   Plot for K = 0
 #
-k0_train = train_val[0,:,0]
-k0_val = train_val[1,:,0]
-x = np.arange(1,6)
+k0_train = train_val[0,:,1]
+k0_val = train_val[1,:,1]
+print(k0_train.shape)
+# quit()
+x = np.arange(1,k0_train.shape[0]+1)
 colormap = plt.cm.get_cmap("Spectral")
 i = 0
 for square in np.transpose(train_val,(2,0,1)):
