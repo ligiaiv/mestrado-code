@@ -27,6 +27,7 @@ RUN python3 -m spacy download pt_core_news_sm
 # COPY teste1/*.py /opt/source-code/teste1/
 COPY Datasets /opt/source-code/Datasets
 COPY commands.sh /opt/source-code/
+COPY Embeddings /opt/source-code/Embeddings
 # COPY teste1/variables.json /opt/source-code/teste1/
 
 

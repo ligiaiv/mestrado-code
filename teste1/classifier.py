@@ -75,7 +75,7 @@ class LSTMClassifier(nn.Module):
 
 		# linear_out = self.linear(LSTM)
 		# scores = self.softmax(linear_out)
-		print("lstm scores",scores.shape)
+		# print("lstm scores",scores.shape)
 		return scores
 
 
@@ -487,3 +487,72 @@ class CNN1DoncharLevel(nn.Module):
 		# scores = self.softmax(linear_out)
 		return scores
 
+class LSTM_CNNClassifier(nn.Module):
+  
+	def __init__(self, options,pretrained_embedding = None):
+		super(LSTM_CNNClassifier, self).__init__()
+
+		self.options = options
+
+		self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],
+									  embedding_dim=options["emb_dim"],
+									  padding_idx=0)
+
+		if pretrained_embedding is not None:
+			print("\n\t-Using pre-trained embedding")
+			self.embedding.from_pretrained(
+				pretrained_embedding.vectors, freeze=options["freeze_emb"])
+
+		self.lstm = nn.LSTM(input_size=options['emb_dim'],
+							hidden_size=options['hidden_lstm_dim'],
+							num_layers=options['num_layers'],
+							batch_first=True,
+							bidirectional=options['bidirectional'])
+
+		lstm_out_size = options['hidden_lstm_dim']
+		if options['bidirectional']:
+			lstm_out_size *= 2
+
+		self.linear = nn.Linear(in_features=lstm_out_size,
+								out_features=options["num_labels"])
+		self.softmax = nn.LogSoftmax(dim=1)
+
+	def forward(self, x, length):
+
+		batch_size = x.size()[1]
+		# print("x size in forward:",x.size())
+		# print("x in",x)
+		
+		embeddings = self.embedding(x)
+		print("lstm-cnn embeddings.shape",embeddings.shape)
+		# embeddings = nn.utils.rnn.pack_padded_sequence(
+		# 	embeddings, length, batch_first=False)
+
+		outputs, (ht, ct) = self.lstm(embeddings,)
+		# print("lstm-cnn outputs.shape",outputs.shape)
+
+		# outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(
+		# 	outputs, batch_first=False)
+
+		lstm_out = outputs
+
+		print("lstm-cnn outputs.shape",lstm_out.shape)
+		quit()
+		# if self.options['bidirectional']:
+		# 	ht = ht.view(self.options['num_layers'], 2, batch_size,
+		# 				 self.options['hidden_lstm_dim'])
+		# 	ht = ht[-1]  # get last (forward and backward) hidden states
+		# 	# from last layer
+		# 	# concatenate last hidden states from forward and backward passes
+		# 	lstm_out = torch.cat([ht[0], ht[1]], dim=1)
+		# else:
+		# 	# get the last hidden state of the outmost layer
+		# 	lstm_out = ht[-1, :, :]
+
+		# linear_out = self.linear(lstm_out)
+		# scores = self.softmax(linear_out)
+
+		#
+		#		COLOCAR CNN AQUI!!!!!!!!!!!!!!!!!!!!!!!!!!!!111
+		#		output da lstm shape = (seq_len,batch_size,hidden_LSTM_size(=100))
+		#

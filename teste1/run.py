@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from classifier import LSTMClassifier,CNN1DonWordLevel, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset,BertForSequenceClassification
+from classifier import LSTMClassifier,CNN1DonWordLevel,LSTM_CNNClassifier, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset,BertForSequenceClassification
 from readFile import fileReader
 import os
 import pandas
@@ -14,6 +14,8 @@ import torchtext.data as ttd
 import random
 import sys
 from datetime import datetime, timezone
+# import matplotlib.pyplot as plt
+
 
 import helper
 
@@ -57,7 +59,15 @@ options = json.load(open("teste1/variables.json", "r"))
 dataset = datasetBuilder(path+'Datasets/', "labeled_data.csv",options = options)
 print("DATASET LEN:", len(dataset))
 
-
+#   SEE data histogram len(text)
+# lenghts=[]
+# for ex in dataset.data.examples:
+#     lenghts.append( len(ex.text))
+# a = np.array(lenghts)
+# # hist = np.histogram(a,a.max()-a.min()+1)
+# plt.hist(a,bins = "auto")
+# plt.show()
+# quit()
 # print("TEXT",dataset.data.examples[0].text)
 
 # more NN options
@@ -109,6 +119,8 @@ def prepare_train(options,dataset,index = None,split_ratio = [0.7,0.15,0.15]):
         model = CNN1DonWordLevel(options, vocab)
     elif options["architecture"] == "cnn-cl":
         model = CNN1DonCharLevel(options)
+    elif options["architecture"] == "lstm-cnn":
+        model = LSTM_CNNClassifier(options)
     else:
         print("ERROR: architecture provided"+model["architecture"]+"does not match any option")
         quit()

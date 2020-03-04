@@ -1,10 +1,10 @@
 {
-	"architecture": "cnn",
+	"architecture": "lstm-cnn",
 
 	"emb_dim": 200,
 	"freeze_emb": true,
 
-	"bidirectional": true,
+	"bidirectional": false,
 	"hidden_lstm_dim": 100,
 
 	"hidden_size_bert":768,

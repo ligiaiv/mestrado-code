@@ -21,6 +21,8 @@ FILE = filenames[-1]
 
 with open(dir_path+"/"+FILE, "r") as read_file:
     in_js = json.load(read_file)
+print("\n")
+pprint(in_js["options"])
 # in_df = pd.read_csv(dir_path+"/"+FILE,delimiter='|',dtype=float,header=None)
 # in_np = in_df.values
 # print(np.average(in_df.values))
@@ -28,7 +30,7 @@ metrics = ["acc","prec","recall","f1"]
 for i,arr in enumerate(in_js["test"]):
     print(metrics[i] ,"is ",np.average(np.array(arr)))
 train_val = np.array(in_js["train_val"])
-conf_matrix = np.array(in_js["confmat"])
+conf_matrix = np.array(in_js.get("confmat","No conf matrix"))
 print(train_val.shape)
 #
 #   Plot for K = 0
