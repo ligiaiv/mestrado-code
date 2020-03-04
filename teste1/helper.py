@@ -24,6 +24,7 @@ def sort_by_length(x, l, y):
 
 def get_accuracy(hypos, refs):
 	conf_matrix = np.matmul(hypos.transpose(), refs)
+
 	assert(len(hypos) == len(refs))
 	metrics = np.ndarray((4, 0))
 	for categ in range(hypos.shape[1]):
@@ -44,7 +45,7 @@ def get_accuracy(hypos, refs):
 
 	[acc, prec, recall, f1] = (
 		(metrics*conf_matrix.sum(axis=0)).sum(axis=1))/(conf_matrix.sum()).tolist()
-	return (acc, prec, recall, f1)
+	return (acc, prec, recall, f1,conf_matrix)
 
 
 def evaluate_model(data_loader, model, set_name, n_labels,architecture, sort=False):

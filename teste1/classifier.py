@@ -75,7 +75,7 @@ class LSTMClassifier(nn.Module):
 
 		# linear_out = self.linear(LSTM)
 		# scores = self.softmax(linear_out)
-
+		print("lstm scores",scores.shape)
 		return scores
 
 
@@ -152,7 +152,7 @@ class datasetBuilder():
 	def preprocessData(self):
 
 		if not(self.options["architecture"] == 'bert'):
-			self.TEXT.build_vocab(self.data, vectors="glove.6B.100d")
+			self.TEXT.build_vocab(self.data, vectors="glove.6B.100d", vectors_cache = "Embeddings")
 		# tokenized_text = self.bertTokenizer.tokenize(some_text)
 
 		# self.bertTokenizer.convert_tokens_to_ids(tokenized_text)
@@ -209,15 +209,16 @@ def train_model(options, train_iter, val_iter, optimizer, model, loss_function):
 			# print("point 5")
 			labels = y
 			loss = loss_function(scores, labels)
+			# print("loss",loss)
 			loss.backward()
 			optimizer.step()
 			# print("point 6")
 
-		acc_train,_,_,_ = helper.evaluate_model(train_iter, model, "train", options["num_labels"],architecture = options["architecture"], sort=True)
+		acc_train,_,_,_,_ = helper.evaluate_model(train_iter, model, "train", options["num_labels"],architecture = options["architecture"], sort=True)
 		accs_train.append(acc_train)
-		acc_val,_,_,_ = helper.evaluate_model(val_iter, model,"val", options["num_labels"], architecture = options["architecture"], sort=True)
+		acc_val,_,_,_,_ = helper.evaluate_model(val_iter, model,"val", options["num_labels"], architecture = options["architecture"], sort=True)
 		accs_val.append(acc_val)
-
+		print("Acc train: ",acc_train,"\tacc val: ",acc_val)
 	return (accs_train, accs_val)
 	# monitor performance on dev data
 
@@ -308,10 +309,10 @@ class BertForSequenceClassification(nn.Module):
 		return scores
 
 
-class CNN1DforSentenceClassification(nn.Module):
+class CNN1DonWordLevel(nn.Module):
   
 	def __init__(self, options,pretrained_embedding = None):
-		super(CNN1DforSentenceClassification, self).__init__()
+		super(CNN1DonWordLevel, self).__init__()
 		self.options = options
 
 		self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],
@@ -329,27 +330,118 @@ class CNN1DforSentenceClassification(nn.Module):
 		# self.softmax = nn.LogSoftmax(dim=1)
 
 		self.dropout_input = nn.Dropout2d(0.25)
-		
-		conv1 = nn.Sequential(
+		# options["emb_dim"]
+		self.conv1 = nn.Sequential(
 			nn.Conv1d(options["emb_dim"],100,3),
 			nn.ReLU(),
-			nn.MaxPool1d(3)
+			nn.MaxPool1d(options["seq_len"]-2)
 		)
-		conv2 = nn.Sequential(
+		self.conv2 = nn.Sequential(
+			nn.Conv1d(options["emb_dim"],100,4),
+			nn.ReLU(),
+			nn.MaxPool1d(options["seq_len"]-3)
+		)
+		self.conv3 = nn.Sequential(
+			nn.Conv1d(options["emb_dim"],100,5),
+			nn.ReLU(),
+			nn.MaxPool1d(options["seq_len"]-4)
+		)
+		# self.conv = nn.Sequential(conv1,conv2,conv3)
+		self.dropout_output = nn.Dropout2d(0.5)
+		self.activation1 = nn.ReLU()
+		self.dense = nn.Linear(3*100,options["num_labels"])
+		# self.activation2 = nn.Softmax(dim = 1)
+		self.activation2 = nn.LogSoftmax(dim=1)
+
+
+	def forward(self, x, length):
+		
+		
+		batch_size = x.size()[1]
+		# print("x size in forward:",x.size())
+		# print("x in",x)
+		
+		embeddings = self.embedding(x)
+		# embeddings = nn.utils.rnn.pack_padded_sequence(
+		# 	embeddings, length, batch_first=False)
+
+		# outputs, (ht, ct) = self.lstm(embeddings)
+
+		# outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(
+		# 	outputs, batch_first=False)
+		# print("after embedding layer ",embeddings.shape)
+		embeddings = embeddings.transpose(0,1)
+		embeddings = embeddings.transpose(2,1)
+		# print("before conv1 ",embeddings.shape)
+
+		x = self.dropout_input(embeddings)
+		c1 = self.conv1(x)
+		# print("after conv 1",x.shape)
+		c2 = self.conv2(x)
+		# print("after conv 2",x.shape)
+
+		c3 = self.conv3(x)
+		# print("after conv 3",x.shape)
+		# print("c1",c1.shape)
+		x = torch.cat([c1,c2,c3],dim=1)
+		# print("x after cat",x.shape)
+		x = x.squeeze()
+		# x = self.conv(x)
+		x = self.dropout_output(x)
+		# print("after dropout",x.shape)
+
+		x = self.activation1(x)
+		# print("after activation",x.shape)
+
+		x = self.dense(x)
+		scores = self.activation2(x)#softmax
+		# linear_out = self.linear(lstm_out)
+		# scores = self.softmax(linear_out)
+		# print("snn scores",scores.shape)
+		return scores
+
+class CNN1DoncharLevel(nn.Module):
+  
+	def __init__(self, options,pretrained_embedding = None):
+		super(CNN1DoncharLevel, self).__init__()
+		self.options = options
+
+		self.embedding = nn.Embedding(num_embeddings=options["vocab_size"],
+									  embedding_dim=options["emb_dim"],
+									  padding_idx=0)
+
+		if pretrained_embedding is not None:
+			print("\n\t-Using pre-trained embedding")
+			self.embedding.from_pretrained(
+				pretrained_embedding.vectors, freeze=options["freeze_emb"])
+		# self.embedding.load_state_dict()
+		
+		# self.linear = nn.Linear(in_features=lstm_out_size,
+		# 						out_features=options["num_labels"])
+		# self.softmax = nn.LogSoftmax(dim=1)
+
+		self.dropout_input = nn.Dropout2d(0.25)
+		# options["emb_dim"]
+		self.conv1 = nn.Sequential(
+			nn.Conv1d(options["emb_dim"],100,3),
+			nn.ReLU(),
+			nn.MaxPool1d(2)
+		)
+		self.conv2 = nn.Sequential(
 			nn.Conv1d(100,100,4),
 			nn.ReLU(),
-			nn.MaxPool1d(4)
+			nn.MaxPool1d(2)
 		)
-		conv3 = nn.Sequential(
+		self.conv3 = nn.Sequential(
 			nn.Conv1d(100,100,5),
 			nn.ReLU(),
-			nn.MaxPool1d(5)
+			nn.MaxPool1d(10)
 		)
-		self.conv = nn.Sequential(conv1,conv2,conv3)
+		# self.conv = nn.Sequential(conv1,conv2,conv3)
 		self.dropout_output = nn.Dropout2d(0.5)
 		self.activation1 = nn.ReLU()
 		self.dense = nn.Linear(100,options["num_labels"])
-		self.activation2 = nn.Softmax()
+		self.activation2 = nn.Softmax(dim=1)
 		
 
 	def forward(self, x, length):
@@ -367,13 +459,31 @@ class CNN1DforSentenceClassification(nn.Module):
 
 		# outputs, output_lengths = nn.utils.rnn.pad_packed_sequence(
 		# 	outputs, batch_first=False)
+		# print("after embedding layer ",embeddings.shape)
+		embeddings = embeddings.transpose(0,1)
+		embeddings = embeddings.transpose(2,1)
+		# print("before conv1 ",embeddings.shape)
 
-		x = self.dropout_input(x)
-		x = self.conv(x)
+		x = self.dropout_input(embeddings)
+		x = self.conv1(x)
+		# print("after conv 1",x.shape)
+		# x = self.conv2(x)
+		# print("after conv 2",x.shape)
+
+		# x = self.conv3(x)
+		# print("after conv 3",x.shape)
+		x = x.squeeze()
+		# x = self.conv(x)
 		x = self.dropout_output(x)
+		# print("after dropout",x.shape)
+
 		x = self.activation1(x)
+		# print("after activation",x.shape)
+
 		x = self.dense(x)
 		scores = self.activation2(x)#softmax
+		print(scores.shape)
 		# linear_out = self.linear(lstm_out)
 		# scores = self.softmax(linear_out)
+		return scores
 

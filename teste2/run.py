@@ -20,14 +20,20 @@ labels_array = np.stack([sexism_array,racism_array,none_array])
 print(labels_array)
 print("df",df.shape)
 print("arr",labels_array.shape)
-new_df = pd.concat([df,pd.DataFrame(data = labels_array.T, columns=["sexism","racism","none"])],axis=1)
+classes_names = ["sexism","racism","none"]
+new_df = pd.concat([df,pd.DataFrame(data = labels_array.T, columns=classes_names)],axis=1)
 
 print(new_df.columns)
 print(new_df)
 
-(x_train, y_train), (x_test, y_test), preproc  = text.texts_from_df(new_df,"text",["sexism","racism","none"],preprocess_mode="bert")
+(x_train, y_train), (x_test, y_test), preproc  = text.texts_from_df(new_df,"text",classes_names,preprocess_mode="bert",)
 
 model = text.text_classifier('bert', (x_train, y_train), preproc=preproc)
-learner = ktrain.get_learner(model,train_data=(x_train, y_train), val_data=(x_test, y_test), batch_size=6)
+learner = ktrain.get_learner(model,train_data=(x_train, y_train), val_data=(x_test, y_test), batch_size=64)
+learner.lr_find()
+best_lr = learner.lr_find(show_plot=False, max_epochs=2)
 
-learner.fit_onecycle(2e-5, 1)
+# train using triangular learning rate policy
+learner.fit_onecycle(best_lr, epochs=10)
+results = learner.validate(class_names=classes_names)
+print(results)

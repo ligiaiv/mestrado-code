@@ -1,14 +1,21 @@
 {
+	"architecture": "cnn",
+
 	"emb_dim": 200,
 	"freeze_emb": true,
-	"hidden_lstm_dim": 100,
-	"hidden_size_bert":768,
+
 	"bidirectional": true,
+	"hidden_lstm_dim": 100,
+
+	"hidden_size_bert":768,
 	"dropout": 0.5,
+
 	"num_layers": 1,
-	"num_epochs": 2,
+
+	"seq_len": 64,
+
+	"num_epochs": 10,
 	"batch_size": 128,
 	"kfold": 2,
-	"architecture": "cnn",
-	"seq_len": 64
+	"use_kfold":false
 }
