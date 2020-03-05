@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from classifier import LSTMClassifier,CNN1DonWordLevel,LSTM_CNNClassifier, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset,BertForSequenceClassification
+from classifier import LSTMClassifier,CNN1DClassifier,LSTM_CNNClassifier, datasetBuilder, train_model, myConcatDataset, myDataset, mySplitDataset,BertForSequenceClassification
 from readFile import fileReader
 import os
 import pandas
@@ -115,10 +115,12 @@ def prepare_train(options,dataset,index = None,split_ratio = [0.7,0.15,0.15]):
         model = BertForSequenceClassification(options)
     elif options["architecture"]=="lstm":
         model = LSTMClassifier(options, vocab)
+    elif options["architecture"]=="lstm-cl":
+        model = LSTMClassifier(options)
     elif options["architecture"] == "cnn":
-        model = CNN1DonWordLevel(options, vocab)
+        model = CNN1DClassifier(options, vocab)
     elif options["architecture"] == "cnn-cl":
-        model = CNN1DonCharLevel(options)
+        model = CNN1DClassifier(options)
     elif options["architecture"] == "lstm-cnn":
         model = LSTM_CNNClassifier(options)
     else:

@@ -1,8 +1,8 @@
 {
-	"architecture": "lstm-cnn",
+	"architecture": "lstm-cl",
 
 	"emb_dim": 200,
-	"freeze_emb": true,
+	"freeze_emb": false,
 
 	"bidirectional": false,
 	"hidden_lstm_dim": 100,
