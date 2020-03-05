@@ -5,7 +5,7 @@
 	"freeze_emb": false,
 
 	"bidirectional": false,
-	"hidden_lstm_dim": 100,
+	"hidden_lstm_dim": 50,
 
 	"hidden_size_bert":768,
 	"dropout": 0.5,

@@ -4,20 +4,32 @@ import os, json,sys
 from pprint import pprint
 import matplotlib.pyplot as plt
 from itertools import permutations 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--file", help="explicit file to read. If None, get first file in alphabetic order",action="store_true")
+parser.add_argument("--final", help="if on, read files from resul",action="store_true")
+
+args = parser.parse_args()
+
+
 
 
 # FILE = "/out_03-02-2020__19:12:31.json"
-if len(sys.argv)>=2:
-    FILE = sys.argv[1]
-    print(FILE)
+# if len(sys.argv)>=2:
+#     FILE = sys.argv[1]
+#     print(FILE)
 dir_path = os.path.dirname(os.path.realpath(__file__))
-print(dir_path)
-
-for (dirpath, dirnames, filenames) in os.walk(dir_path):
-    print("filenames:",filenames)
-filenames = os.listdir(dir_path) 
-filenames.sort()
-FILE = filenames[-1]
+if args.final:
+    dir_path = dir_path+"/resultados_finais"
+if args.file:
+    FILE = args.file
+else:
+    for (dirpath, dirnames, filenames) in os.walk(dir_path):
+        print("filenames:",filenames)
+    filenames = os.listdir(dir_path) 
+    filenames.sort()
+    FILE = filenames[-1]
 
 with open(dir_path+"/"+FILE, "r") as read_file:
     in_js = json.load(read_file)

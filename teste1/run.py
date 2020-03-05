@@ -214,8 +214,8 @@ if options["use_kfold"]:
         #
         #	Test and save
         #
-        aprf_test = helper.evaluate_model(test_loader, model, "test", options["num_labels"], architecture = options["architecture"], sort=True)
-        test_metrics = np.hstack((test_metrics,np.expand_dims(np.array(aprf_test),axis = 1)))
+        acc,prec,rec,f1,confmat = helper.evaluate_model(test_loader, model, "test", options["num_labels"], architecture = options["architecture"], sort=True)
+        test_metrics = np.hstack((test_metrics,np.expand_dims(np.array([acc,prec,rec,f1]),axis = 1)))
 
         # end loop    
 else:

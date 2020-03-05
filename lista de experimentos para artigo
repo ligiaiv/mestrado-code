@@ -1,0 +1,11 @@
+LSTM - freeze embeddings -> out_03-05-2020__20:14:17
+LSTM - no freeze embeddings -> out_03-05-2020__19:35:41
+CNN Freeze embeddings -> out_03-05-2020__20:57:37
+CNN no freeze embeddings -> out_03-05-2020__20:35:15
+LSTM-CNN Freeze Embeddings
+LSTM-CNN no freeze embeddings
+CNN character level
+
+se possível:
+LSTM character level
+LSTM-CNN character level
