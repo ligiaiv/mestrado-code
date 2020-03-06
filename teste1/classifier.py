@@ -474,7 +474,7 @@ class LSTM_CNNClassifier(nn.Module):
 		self.softmax = nn.LogSoftmax(dim=1)
 
 	def forward(self, x, length):
-
+		
 		# batch_size = x.size()[1]
 		# print("x size in forward:",x.size())
 		# print("x in",x)
