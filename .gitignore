@@ -4,7 +4,28 @@
 *.vector_cache/
 .vscode/
 teste1/results/
-# results_from*
-
+results_from*
+*results*
+coleta/
 # !results_from*/*.py
 teste2/ktrain_data/
+*.csv
+*.txt
+text_gcn-master/
+temp/
+NO_GIT/
+*text_gcn*
+*.zip
+*coleta*
+*wordnet*
+classifiers/variated_N/
+DE-LIMIT-master/
+LASER-master/
+classifiers/myGlove/
+classifiers/gcn
+classifiers/nofortuna/
+classifiers/nofor_swap_none/
+classifiers/Text-GCN-master/
+classifiers/PCNN-LSTM/
+classifiers/CNN-nonoise/
+*ktrain_data/

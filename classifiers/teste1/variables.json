@@ -1,0 +1,22 @@
+{
+	"architecture": "cnn-lstm",
+	"read_weights": false,
+	"emb_type": "glove.6B",
+	"emb_dim": 200,
+	"freeze_emb": true,
+
+	"bidirectional": false,
+	"hidden_lstm_dim": 50,
+
+	"hidden_size_bert":768,
+	"dropout": 0.5,
+
+	"num_layers": 1,
+
+	"seq_len": 64,
+
+	"num_epochs": 10,
+	"batch_size": 128,
+	"kfold": 10,
+	"use_kfold":true
+}

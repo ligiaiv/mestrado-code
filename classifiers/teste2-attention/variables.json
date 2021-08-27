@@ -1,0 +1,33 @@
+{
+	"datafile":"fortuna_labeled_data.csv",
+	"extra_datafile":"translated_ajusted_translated_labeled_data.csv",
+	"architecture": "lstm",
+	"read_weights": false,
+	"emb_type": "malini",
+	"emb_dim": 200,
+	"freeze_emb": false,
+
+	"bidirectional": false,
+	"hidden_lstm_dim": 1,
+	"attention_size":10,
+
+	"hidden_size_bert":768,
+	"dropout": 0.5,
+
+	"filters":8,
+	"pool_size":2,
+
+	"num_layers": 1,
+
+	"seq_len": 35,
+	
+	"split":0.7,
+	"num_epochs": 1,
+	"batch_size": 128,
+	"kfold": 3,
+	"use_kfold":true,
+	"early_stopping":1,
+	"data_augmentation":null,
+	"prob_deletion":false,
+	"extra_training_data":false
+}

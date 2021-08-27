@@ -1,8 +1,0 @@
-04/03/2020 - 11:40-labcisne
-CNN estagnou com 10 épocas. Hiperparâmeros utilizados à seguir:
-dropout1 = 0.25
-dropout2 = 0.5
-arquitetura com 3 cnn paralelas de profundidade = 100 e kernels respectivamente=[2,3,4] com Relu e Global Max Pooling
-Concatenação das saídas
-OPTIONS: {'architecture': 'cnn', 'emb_dim': 200, 'freeze_emb': True, 'bidirectional': True, 'hidden_lstm_dim': 100, 'hidden_size_bert': 768, 'dropout': 0.5, 'num_layers': 1, 'seq_len': 64, 'num_epochs': 20, 'batch_size': 128, 'kfold': 2, 'use_kfold': False, 'vocab_size': 18652, 'num_labels': 4}
-
